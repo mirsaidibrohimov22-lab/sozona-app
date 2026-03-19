@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════
+# SO'ZONA — Lint Qoidalari
+# Maqsad: Kod sifatini MAJBURIY darajada yuqori ushlab turish
+# ═══════════════════════════════════════════════════
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Bu xatoliklar ERROR sifatida ko'rsatiladi — tuzatish MAJBURIY
+    missing_required_param: error
+    missing_return: error
+    dead_code: warning
+    unused_import: warning
+    unused_local_variable: warning
+    unused_element: warning
+    # Info darajasidagi lint qoidalar — suppress
+    prefer_const_constructors: ignore
+    prefer_const_declarations: ignore
+    prefer_const_literals_to_create_immutables: ignore
+    require_trailing_commas: ignore
+    depend_on_referenced_packages: ignore
+    avoid_types_as_parameter_names: ignore
+    curly_braces_in_flow_control_structures: ignore
+  exclude:
+    # Auto-generated fayllarni tekshirmaslik
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/firebase_options.dart"
+    - "lib/l10n/**"
+
+linter:
+  rules:
+    # ═══════════════════════════════════════
+    # 🔒 XAVFSIZLIK VA TO'G'RILIK
+    # ═══════════════════════════════════════
+    - avoid_print                          # print() TAQIQLANGAN — faqat Logger
+    - avoid_web_libraries_in_flutter       # Web kutubxonalar taqiqlangan
+    - no_duplicate_case_values             # Switch da takroriy case bo'lmasin
+    - valid_regexps                        # Regex to'g'ri bo'lsin
+    - always_use_package_imports           # Faqat package: import ishlatish
+    - avoid_relative_lib_imports           # Nisbiy import TAQIQLANGAN
+
+    # ═══════════════════════════════════════
+    # 📝 KOD SIFATI
+    # ═══════════════════════════════════════
+    - prefer_final_fields                  # Maydonlar final bo'lsin
+    - unnecessary_const                    # Keraksiz const olib tashla
+    - unnecessary_new                      # new kalit so'zini ishlat emas
+    - unnecessary_this                     # Keraksiz this olib tashla
+    - unnecessary_string_interpolations    # Keraksiz string interpolation
+    - unnecessary_brace_in_string_interps  # Keraksiz {} olib tashla
+    - unnecessary_null_checks              # Keraksiz null tekshiruv
+    - unnecessary_overrides                # Keraksiz override olib tashla
+
+    # ═══════════════════════════════════════
+    # 📐 STIL VA FORMAT
+    # ═══════════════════════════════════════
+    - prefer_single_quotes                 # Bitta tirnoq ishlat
+    - prefer_is_empty                      # .isEmpty ishlat (.length == 0 emas)
+    - prefer_is_not_empty                  # .isNotEmpty ishlat
+    - prefer_if_null_operators             # ?? ishlat
+    - prefer_null_aware_operators          # ?. ishlat
+    - prefer_spread_collections            # [...list] ishlat
+    - prefer_collection_literals           # [] ishlat (List() emas)
+    - avoid_unnecessary_containers         # Keraksiz Container olib tashla
+    - sized_box_for_whitespace             # SizedBox ishlat (Container emas)
+    - sort_child_properties_last           # child: eng oxirida bo'lsin
+    - use_full_hex_values_for_flutter_colors  # 0xFFRRGGBB ishlat
+
+    # ═══════════════════════════════════════
+    # 📖 HUJJATLASHTIRISH
+    # ═══════════════════════════════════════
+    - slash_for_doc_comments               # /// ishlat (/** */ emas)
+
+    # ═══════════════════════════════════════
+    # ⚠️ XATOLIK OLDINI OLISH
+    # ═══════════════════════════════════════
+    - avoid_empty_else                     # Bo'sh else TAQIQLANGAN
+    - avoid_returning_null_for_void        # void funksiyada null qaytarma
+    - empty_catches                        # Bo'sh catch TAQIQLANGAN
+    - no_leading_underscores_for_local_identifiers
+    - null_check_on_nullable_type_parameter
+    - prefer_void_to_null                  # void ishlat (Null emas)
+    - use_key_in_widget_constructors       # Widget da key bo'lsin

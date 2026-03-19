@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "747601471487",
+    "firebase_url": "https://so-zona-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "so-zona",
+    "storage_bucket": "so-zona.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747601471487:android:b0f77fe74b192dc6e9e9ca",
+        "android_client_info": {
+          "package_name": "com.example.my_first_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsKSJTmNKCjknfkm7mwgn53a0f5yHKR0g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747601471487:android:3621d664a7d240e0e9e9ca",
+        "android_client_info": {
+          "package_name": "com.example.sozona"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsKSJTmNKCjknfkm7mwgn53a0f5yHKR0g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

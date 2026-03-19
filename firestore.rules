@@ -1,0 +1,249 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+    function isOwner(userId) {
+      return isAuth() && uid() == userId;
+    }
+    function userExists() {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/users/$(uid()));
+    }
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+    function isTeacher() {
+      return userExists() && getUserData().role == 'teacher';
+    }
+    function isStudent() {
+      return userExists() && getUserData().role == 'student';
+    }
+    function isClassTeacher(classId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/classes/$(classId)) &&
+        get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == uid();
+    }
+    function isClassMember(classId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/classes/$(classId)/members/$(uid()));
+    }
+
+    // ═══════════════════════════════════
+    // USERS
+    // ═══════════════════════════════════
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isTeacher();
+      allow create: if isOwner(userId) && request.resource.data.role in ['student', 'teacher'];
+      allow update: if isOwner(userId);
+      allow delete: if false;
+
+      match /weakItems/{itemId} { allow read, write: if isOwner(userId); }
+      match /learnerProfile/{docId} { allow read, write: if isOwner(userId); }
+      match /artikel_progress/{wordId} { allow read, write: if isOwner(userId); }
+      match /chatHistory/{msgId} { allow read, write: if isOwner(userId); }
+    }
+
+    // ═══════════════════════════════════
+    // CLASSES
+    // ═══════════════════════════════════
+    match /classes/{classId} {
+      allow read: if isAuth();
+      allow create: if isTeacher() && request.resource.data.teacherId == uid();
+      allow update: if isAuth() && resource.data.teacherId == uid()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacherId', 'createdAt']);
+      allow delete: if isAuth() && resource.data.teacherId == uid();
+
+      // ✅ YANGI: Sinfga yuborilgan kontent subcollection
+      match /content/{contentId} {
+        allow read: if isAuth() && (isClassTeacher(classId) || isClassMember(classId));
+        allow create: if isAuth() && isClassTeacher(classId);
+        allow update: if isAuth() && isClassTeacher(classId);
+        allow delete: if isAuth() && isClassTeacher(classId);
+      }
+
+      match /members/{memberId} {
+        allow read: if isAuth() && (isClassTeacher(classId) || uid() == memberId);
+        allow create: if isAuth() && uid() == memberId;
+        allow delete: if isClassTeacher(classId) || uid() == memberId;
+        allow update: if false;
+      }
+
+      // ✅ Sinf chat — autentifikatsiya qilingan foydalanuvchi o'qiy va yoza oladi
+      // isClassMember() o'rniga isAuth() — exists() chaqiruvi permission denied berardi
+      match /chat/{messageId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && request.resource.data.senderId == uid();
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+
+    // ✅ Collection group query — members (student o'z sinflarini topishi uchun)
+    match /{path=**}/members/{memberId} {
+      allow read: if isAuth() && uid() == memberId;
+    }
+
+    // ═══════════════════════════════════
+    // CONTENT (quiz, listening va boshqalar)
+    // ═══════════════════════════════════
+    match /content/{contentId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && (
+        request.resource.data.creatorId == uid() ||
+        request.resource.data.createdBy == uid()
+      );
+      allow update: if isAuth() && (
+        resource.data.creatorId == uid() || resource.data.createdBy == uid()
+      );
+      allow delete: if isAuth() && (
+        resource.data.creatorId == uid() || resource.data.createdBy == uid()
+      );
+    }
+
+    // ═══════════════════════════════════
+    // ATTEMPTS
+    // ═══════════════════════════════════
+    match /attempts/{attemptId} {
+      // ✅ FIX: Teacher dashboard uchun isTeacher() qo'shildi
+      // Va classId bo'yicha filter qilish uchun ruxsat berildi
+      allow read: if isAuth() && (
+        resource.data.userId == uid() ||
+        isTeacher()
+      );
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ═══════════════════════════════════
+    // PROGRESS + SUBCOLLECTIONS
+    // ═══════════════════════════════════
+    match /progress/{userId} {
+      allow read: if isOwner(userId) || isTeacher();
+      allow write: if isOwner(userId);
+
+      match /dailyPlans/{date} { allow read, write: if isOwner(userId); }
+      match /daily/{date} { allow read, write: if isOwner(userId); }
+      match /weakItems/{itemId} { allow read, write: if isOwner(userId); }
+    }
+
+    // ═══════════════════════════════════
+    // MICRO SESSIONS
+    // ═══════════════════════════════════
+    match /microSessions/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+      match /sessions/{sessionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if false;
+      }
+    }
+
+    // ═══════════════════════════════════
+    // FOLDERS
+    // ═══════════════════════════════════
+    match /folders/{folderId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ═══════════════════════════════════
+    // FLASHCARDS
+    // ═══════════════════════════════════
+    match /flashcards/{cardId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ═══════════════════════════════════
+    // ARTIKEL WORDS
+    // ═══════════════════════════════════
+    match /artikel_words/{wordId} {
+      allow read: if isAuth();
+      allow write: if isTeacher();
+    }
+
+    // ═══════════════════════════════════
+    // LISTENING EXERCISES
+    // ═══════════════════════════════════
+    match /listening_exercises/{exerciseId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isTeacher();
+    }
+
+    match /listening_results/{resultId} {
+      allow read: if isAuth() && resource.data.studentId == uid();
+      allow create: if isAuth() && request.resource.data.studentId == uid();
+      allow update, delete: if false;
+    }
+
+    match /speaking_exercises/{exerciseId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isTeacher();
+    }
+
+    // ═══════════════════════════════════
+    // ACTIVITIES
+    // ═══════════════════════════════════
+    match /activities/{activityId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+
+    match /dailyPlans/{planId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if false;
+    }
+
+    match /publishSchedules/{scheduleId} {
+      allow read: if isAuth() && resource.data.teacherId == uid();
+      allow create: if isTeacher() && request.resource.data.teacherId == uid();
+      allow update: if isAuth() && resource.data.teacherId == uid();
+      allow delete: if isAuth() && resource.data.teacherId == uid();
+    }
+
+    match /dataRequests/{reqId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid()
+        && request.resource.data.type in ['export', 'delete'];
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if false;
+      allow update: if isAuth() && resource.data.userId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    match /userProfiles/{userId} {
+      allow read: if isOwner(userId) || isTeacher();
+      allow write: if false;
+    }
+
+    match /rateLimits/{docId} { allow read: if false; allow write: if false; }
+    match /aiUsage/{docId} { allow read: if false; allow write: if false; }
+    match /aiCostLogs/{logId} { allow read: if false; allow write: if false; }
+    match /ai_costs/{logId} { allow read: if false; allow write: if false; }
+    match /user_costs/{userId} { allow read: if isOwner(userId); allow write: if false; }
+    match /rate_limits/{docId} { allow read: if false; allow write: if false; }
+
+  }
+}

@@ -1,0 +1,86 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Quiz Schema",
+    "description": "AI tomonidan yaratilgan quiz uchun JSON schema validatsiya",
+    "type": "object",
+    "required": [
+        "questions"
+    ],
+    "properties": {
+        "questions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "type",
+                    "question",
+                    "options",
+                    "correctAnswer",
+                    "explanation"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "pattern": "^q[0-9]+$",
+                        "description": "Savol ID - 'q1', 'q2', ..."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "mcq",
+                            "true_false",
+                            "fill_blank"
+                        ],
+                        "description": "Savol turi: MCQ, True/False, yoki Fill Blank"
+                    },
+                    "question": {
+                        "type": "string",
+                        "minLength": 5,
+                        "maxLength": 500,
+                        "description": "Savol matni"
+                    },
+                    "options": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 6,
+                        "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                        },
+                        "description": "Javob variantlari (MCQ uchun 4 ta, True/False uchun 2 ta)"
+                    },
+                    "correctAnswer": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "To'g'ri javob (options'dan birini to'liq ko'chirish kerak)"
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "minLength": 10,
+                        "maxLength": 1000,
+                        "description": "Javob tushuntirilishi"
+                    },
+                    "points": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 10,
+                        "description": "Savol uchun ball"
+                    },
+                    "timeLimit": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 300,
+                        "default": 30,
+                        "description": "Savol uchun vaqt limiti (soniyalarda)"
+                    }
+                }
+            }
+        }
+    }
+}

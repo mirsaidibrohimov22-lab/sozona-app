@@ -1,0 +1,99 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Flashcard Schema",
+    "description": "AI tomonidan yaratilgan flashcard to'plami uchun JSON schema",
+    "type": "object",
+    "required": [
+        "cards"
+    ],
+    "properties": {
+        "cards": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "front",
+                    "back"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "pattern": "^fc[0-9]+$",
+                        "description": "Kartochka ID - 'fc1', 'fc2', ..."
+                    },
+                    "front": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "Old tomon - so'z yoki ibora (target tilda)"
+                    },
+                    "back": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "description": "Orqa tomon - tarjima (o'zbek tilida)"
+                    },
+                    "pronunciation": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 1,
+                        "maxLength": 100,
+                        "pattern": "^\\/.*\\/",
+                        "description": "Talaffuz (IPA format, masalan: /ˈæp.əl/)"
+                    },
+                    "exampleSentence": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 5,
+                        "maxLength": 500,
+                        "description": "Misol gap (target tilda)"
+                    },
+                    "exampleTranslation": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 5,
+                        "maxLength": 500,
+                        "description": "Misol gapning tarjimasi (o'zbek tilida)"
+                    },
+                    "audioUrl": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "description": "Audio fayl URL (TTS orqali yaratiladi)"
+                    },
+                    "imageUrl": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "description": "Rasm URL (ixtiyoriy)"
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 30,
+                            "pattern": "^[a-z_]+$"
+                        },
+                        "minItems": 0,
+                        "maxItems": 5,
+                        "description": "Teglar (masalan: ['food', 'daily_life', 'basic'])"
+                    }
+                }
+            }
+        }
+    }
+}

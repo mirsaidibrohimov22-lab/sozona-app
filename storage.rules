@@ -1,0 +1,70 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── Helper functions ───────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
+    function isJson() {
+      return request.resource.contentType == 'application/json'
+          || request.resource.contentType == 'application/octet-stream';
+    }
+
+    function maxSize(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    // ─── Avatar rasmlar ─────────────────────────────────────────────
+    match /avatars/{userId}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth()
+        && uid() == userId
+        && isImage()
+        && maxSize(5);
+      allow delete: if isAuth() && uid() == userId;
+    }
+
+    // ─── Audio fayllar (Listening mashqlari) ────────────────────────
+    match /audio/{language}/{level}/{fileName} {
+      allow read: if isAuth();
+      allow write: if false; // Faqat Admin SDK (Cloud Functions)
+    }
+
+    // ─── O'qituvchi yuklagan audio ───────────────────────────────────
+    match /teacher_audio/{teacherId}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth()
+        && uid() == teacherId
+        && isAudio()
+        && maxSize(20);
+      allow delete: if isAuth() && uid() == teacherId;
+    }
+
+    // ─── GDPR data export (faqat o'qish) ────────────────────────────
+    match /exports/{userId}/{fileName} {
+      allow read: if isAuth() && uid() == userId;
+      allow write: if false; // Faqat Cloud Functions
+      allow delete: if false;
+    }
+
+    // ─── TTS cache ──────────────────────────────────────────────────
+    match /tts_cache/{language}/{hash} {
+      allow read: if isAuth();
+      allow write: if false; // Faqat Cloud Functions
+    }
+  }
+}

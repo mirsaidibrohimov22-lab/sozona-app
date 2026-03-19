@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════
+# SO'ZONA — functions/.gitignore
+# QO'YISH: functions/.gitignore (functions papka ichiga)
+# ✅ I bo'limi FIX: node_modules, build, keraksiz fayllar
+# ═══════════════════════════════════════════════════════════════
+
+# Node modules — HECH QACHON repo'ga qo'shilmasin
+node_modules/
+
+# TypeScript build output — deploy vaqtida qayta yaratiladi
+lib/
+!src/
+
+# IDE va OS fayllar
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Debug va log fayllar
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables — MAXFIY
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+
+# Vaqtinchalik fayllar
+*.tmp
+*.bak
+*.orig

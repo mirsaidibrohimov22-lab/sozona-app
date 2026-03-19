@@ -1,0 +1,108 @@
+name: my_first_app
+description: "So'zona — AI-powered language learning app for English & German"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # 🔥 FIREBASE
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  cloud_firestore: ^6.1.2
+  firebase_storage: ^13.0.4
+  firebase_crashlytics: ^5.0.7
+  firebase_analytics: ^12.1.1
+  firebase_remote_config: ^6.1.3
+  firebase_messaging: ^16.0.4
+  cloud_functions: ^6.0.6
+  firebase_app_check: ^0.4.1+5
+
+  # ✅ Notification crash oldini olish
+  flutter_local_notifications: ^20.1.0
+
+  # 🏗️ STATE MANAGEMENT
+  flutter_riverpod: ^2.6.1
+
+  # 🧭 NAVIGATION
+  go_router: ^17.1.0
+
+  # 🌐 NETWORK
+  dio: ^5.7.0
+  connectivity_plus: ^7.0.0
+  internet_connection_checker_plus: ^2.7.1
+
+  # 💾 LOCAL STORAGE
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  flutter_secure_storage: ^10.0.0
+  shared_preferences: ^2.3.4
+
+  # 🔊 AUDIO / TTS
+  flutter_tts: ^4.2.0
+  just_audio: ^0.10.5
+  audio_waveforms: ^2.0.2
+  flutter_sound: ^9.2.13
+
+  # 🎤 SPEECH TO TEXT — Speaking modulida ovoz yozish uchun
+  speech_to_text: ^7.0.0
+
+  # 🎨 UI
+  flutter_screenutil: ^5.9.3
+  lottie: ^3.2.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
+  fl_chart: ^1.1.1
+  flutter_svg: ^2.0.16
+  google_fonts: ^8.0.2
+
+  # 🔧 UTIL
+  logger: ^2.5.0
+  uuid: ^4.5.1
+  equatable: ^2.0.7
+  dartz: ^0.10.1
+  rxdart: ^0.28.0
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+  share_plus: ^12.0.1
+  package_info_plus: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.13
+  # ✅ 1-KUN FIX: device_preview endi dev_dependencies ichida
+  device_preview: ^1.2.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  assets:
+    - assets/animations/
+    - assets/images/
+    - assets/images/empty_states/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- android/app/src/main/res/drawable/launch_background.xml -->
+<!-- So'zona — Qora oyna muammosini hal qiladi -->
+<!-- Primary indigo color (#4F46E5) bilan to'ldiriladi -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#4F46E5"/>
+        </shape>
+    </item>
+</layer-list>
