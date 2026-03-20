@@ -1,8 +1,5 @@
 // QO'YISH: lib/features/profile/presentation/screens/settings_screen.dart
 // So'zona — Sozlamalar ekrani
-// ✅ 1-KUN FIX: /student/notification-settings → RoutePaths.notifications
-// ✅ 1-KUN FIX: /student/privacy → RoutePaths.privacy
-// ✅ 1-KUN FIX: SeedData production'dan olib tashlandi (faqat debug mode'da)
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +9,6 @@ import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/core/router/route_names.dart';
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/profile/presentation/providers/profile_provider.dart';
-// ✅ 1-KUN FIX: SeedData faqat debug modeda import qilinadi
 // ignore: unused_import
 import 'package:my_first_app/core/utils/seed_data.dart';
 
@@ -34,29 +30,26 @@ class SettingsScreen extends ConsumerWidget {
               title: const Text('Mikro-sessiya yoqilgan'),
               subtitle: const Text('Har 1 soatda 10 daqiqa mashq'),
               value: profile.preferences.microSessionEnabled,
-              activeThumbColor: AppColors.primary,
+              // ✅ activeColor ishlatiladi (Flutter 3.27 da activeThumbColor yo'q)
+              activeColor: AppColors.primary,
               onChanged: (v) =>
                   ref.read(profileProvider.notifier).updatePreferences(
                         user!.id,
                         profile.preferences.copyWith(microSessionEnabled: v),
                       ),
             ),
-
           const _SectionHeader(title: 'Bildirishnomalar'),
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Bildirishnoma sozlamalari'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-            // ✅ 1-KUN FIX: /student/notification-settings → RoutePaths.notifications
             onTap: () => context.push(RoutePaths.notifications),
           ),
-
           const _SectionHeader(title: "Maxfiylik va ma'lumotlar"),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Maxfiylik siyosati'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-            // ✅ 1-KUN FIX: /student/privacy → RoutePaths.privacy
             onTap: () => context.push(RoutePaths.privacy),
           ),
           ListTile(
@@ -72,19 +65,14 @@ class SettingsScreen extends ConsumerWidget {
             ),
             onTap: () => _confirmDelete(context, ref, user?.id ?? ''),
           ),
-
           const _SectionHeader(title: 'Ilova haqida'),
-
-          // ✅ 1-KUN FIX: SeedData FAQAT debug modeda ko'rinadi
-          // Production build'da bu ListTile umuman chiqmaydi
           if (kDebugMode)
             ListTile(
               leading: const Icon(Icons.cloud_upload, color: Colors.orange),
               title: const Text("Test data qo'shish (DEBUG)"),
-              subtitle: const Text("Faqat developer uchun"),
+              subtitle: const Text('Faqat developer uchun'),
               onTap: () => SeedData.run(context),
             ),
-
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Versiya'),
