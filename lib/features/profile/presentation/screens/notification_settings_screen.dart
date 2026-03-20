@@ -1,4 +1,4 @@
-// QO'YISH: lib/features/profile/presentation/screens/notification_settings_screen.dart
+// lib/features/profile/presentation/screens/notification_settings_screen.dart
 // So'zona — Bildirishnoma sozlamalari ekrani
 
 import 'package:flutter/material.dart';
@@ -90,7 +90,8 @@ class _NotifTile extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
         subtitle: Text(subtitle),
         value: value,
-        activeThumbColor: AppColors.primary,
+        // ✅ activeThumbColor → activeColor (Flutter 3.27)
+        activeColor: AppColors.primary,
         onChanged: onChanged,
       );
 }
