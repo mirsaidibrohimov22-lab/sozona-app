@@ -1,0 +1,53 @@
+# .github/workflows/distribute.yml
+# Firebase App Distribution - har push qilganda APK quriladi va yuboriladi
+
+name: Firebase App Distribution
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Qo'lda ham ishga tushirish mumkin
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Kod olish
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Java o'rnatish (Android build uchun)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 3. Flutter o'rnatish
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # 4. Dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 5. APK qurish (release)
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      # 6. Firebase App Distribution ga yuborish
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_CREDENTIALS }}
+          groups: testers          # Firebase da yaratgan tester guruh nomi
+          file: build/app/outputs/flutter-apk/app-release.apk
+          releaseNotes: |
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}

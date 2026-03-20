@@ -4,38 +4,30 @@
 
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:my_first_app/core/widgets/pencil_loader.dart';
+import 'package:my_first_app/core/widgets/sozana_loading_animation.dart';
 
 /// Loading holati — shimmer effekti bilan.
 ///
 /// 3 xil variant:
 /// - [AppLoadingWidget.card] — karta shaklidagi shimmer
 /// - [AppLoadingWidget.list] — ro'yxat shaklidagi shimmer
-/// - [AppLoadingWidget.circular] — PencilLoader spinner
+/// - [AppLoadingWidget.circular] — SozonaLoadingAnimation spinner
 class AppLoadingWidget extends StatelessWidget {
-  const AppLoadingWidget({super.key, this.message});
+  const AppLoadingWidget({super.key, this.message, this.style});
 
   /// Loading xabari (ixtiyoriy).
   final String? message;
 
-  /// PencilLoader bilan markazlashgan spinner.
+  /// Animatsiya stili (ixtiyoriy, default: pulse).
+  final LoadingStyle? style;
+
+  /// SozonaLoadingAnimation bilan markazlashgan spinner.
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const PencilLoader(),
-          if (message != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              message!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-        ],
+      child: SozonaLoadingAnimation(
+        message: message,
+        style: style ?? LoadingStyle.pulse,
       ),
     );
   }

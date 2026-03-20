@@ -3,28 +3,15 @@
 // QO'YISH: lib/features/student/listening/presentation/screens/listening_play_screen.dart
 //
 // ✅ FIX v2.0: Abadiy loading spinner muammosi hal qilindi
-//
-// MUAMMO (eski kod):
-//   initState() ichida ref.read(listeningDetailProvider(...)) ishlatilgan.
-//   listeningDetailProvider — autoDispose FutureProvider.
-//   ref.read() chaqirilganda provider hali loading holatida bo'ladi.
-//   exerciseAsync.whenData() callback HECH QACHON chaqirilmaydi,
-//   chunki read() snapshot'ni bir marta oladi va kuzatmaydi.
-//   Natija: startListening() hech qachon chaqirilmaydi → playState = null
-//           → build() da "if (playState == null)" → abadiy spinner!
-//
-// YECHIM (yangi kod):
-//   initState() dagi noto'g'ri ref.read() mantiqini olib tashladik.
-//   build() ichida exerciseAsync.data kelganda va playState == null bo'lsa,
-//   addPostFrameCallback orqali startListening() chaqiriladi.
-//   Bu Flutter lifecycle bilan to'g'ri ishlaydi.
+// ✅ v3.0: ListeningLoadingWidget + showListeningSuccess qo'shildi
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_first_app/core/router/route_names.dart';
-import 'package:my_first_app/core/widgets/app_loading_widget.dart';
+import 'package:my_first_app/core/widgets/sozana_loading_animation.dart';
+import 'package:my_first_app/core/widgets/sozana_success_animation.dart';
 import 'package:my_first_app/features/student/listening/presentation/providers/listening_provider.dart';
 import 'package:my_first_app/features/student/listening/presentation/widgets/audio_player_widget.dart';
 import 'package:my_first_app/features/student/listening/presentation/widgets/transcript_widget.dart';
@@ -45,7 +32,6 @@ class ListeningPlayScreen extends ConsumerStatefulWidget {
 
 class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
   bool _listeningStarted = false;
-  // Avtomatik savol o'tishda takrorlanmaslik uchun
   int _lastAutoNextIndex = -1;
 
   @override
@@ -56,8 +42,8 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
     final playState = ref.watch(listeningPlayProvider);
 
     return exerciseAsync.when(
-      loading: () => const Scaffold(
-        body: AppLoadingWidget(message: 'Yuklanmoqda...'),
+      loading: () => Scaffold(
+        body: const ListeningLoadingWidget(),
       ),
       error: (error, stack) => Scaffold(
         body: Center(
@@ -91,7 +77,7 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
         ),
       ),
       data: (exercise) {
-        // ✅ Audio position bo'yicha savol avtomatik o'tishi
+        // Audio position bo'yicha savol avtomatik o'tishi
         if (playState != null && exercise.questions.isNotEmpty) {
           final posSeconds = playState.currentPosition.inSeconds;
           final currentIdx = playState.currentQuestionIndex;
@@ -101,7 +87,6 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
             final nextQ = exercise.questions[nextIdx];
             final nextTs = nextQ.timestamp;
 
-            // Keyingi savol timestampiga yetdik va hali o'tmadik
             if (nextTs != null &&
                 posSeconds >= nextTs &&
                 _lastAutoNextIndex != nextIdx) {
@@ -123,18 +108,17 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
               ref.read(listeningPlayProvider.notifier).startListening(exercise);
             }
           });
-          return const Scaffold(
-            body: AppLoadingWidget(message: 'Tayyorlanmoqda...'),
+          return Scaffold(
+            body: const ListeningLoadingWidget(),
           );
         }
 
         if (playState == null) {
-          return const Scaffold(
-            body: AppLoadingWidget(message: 'Tayyorlanmoqda...'),
+          return Scaffold(
+            body: const ListeningLoadingWidget(),
           );
         }
 
-        // Savollar bo'sh tekshiruv
         if (exercise.questions.isEmpty) {
           return Scaffold(
             appBar: AppBar(title: Text(exercise.title)),
@@ -181,7 +165,6 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
                 isPlaying: playState.isPlaying,
                 currentPosition: playState.currentPosition,
                 totalDuration: playState.totalDuration,
-                // ✅ YANGI: savol timestamp ga seek
                 seekToPosition: playState.seekToPosition,
                 onPlayPause: () {
                   ref.read(listeningPlayProvider.notifier).togglePlay();
@@ -285,83 +268,17 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
     final result =
         await ref.read(listeningPlayProvider.notifier).submitAnswers();
     if (result != null && mounted) {
-      _showResultDialog(result);
+      final correctCount =
+          result is Map ? ((result['correctCount'] ?? 0) as num).toInt() : 0;
+      final totalCount =
+          result is Map ? ((result['totalCount'] ?? 0) as num).toInt() : 0;
+
+      showListeningSuccess(
+        context,
+        score: correctCount,
+        total: totalCount,
+        onContinue: () => context.go(RoutePaths.listening),
+      );
     }
-  }
-
-  void _showResultDialog(dynamic result) {
-    final correctCount = result is Map ? (result['correctCount'] ?? 0) : 0;
-    final totalCount = result is Map ? (result['totalCount'] ?? 0) : 0;
-    final percentage =
-        totalCount > 0 ? ((correctCount / totalCount) * 100).round() : 0;
-
-    final emoji = percentage >= 90
-        ? '🏆'
-        : percentage >= 70
-            ? '🌟'
-            : percentage >= 50
-                ? '✅'
-                : '💪';
-
-    final message = percentage >= 90
-        ? 'Mukammal natija!'
-        : percentage >= 70
-            ? 'Juda yaxshi!'
-            : percentage >= 50
-                ? 'Yaxshi harakat!'
-                : 'Yana mashq qiling!';
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$correctCount / $totalCount to\'g\'ri',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$percentage%',
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: percentage >= 70 ? Colors.green : Colors.orange,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                context.go(RoutePaths.listening);
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text('Yakunlash'),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

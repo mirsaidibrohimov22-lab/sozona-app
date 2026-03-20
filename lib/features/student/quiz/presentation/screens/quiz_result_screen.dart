@@ -1,4 +1,4 @@
-// QO'YISH: lib/features/student/quiz/presentation/screens/quiz_result_screen.dart
+// lib/features/student/quiz/presentation/screens/quiz_result_screen.dart
 // So'zona — Quiz natijasi ekrani
 // ✅ 1-KUN FIX: '/student/quiz' → RoutePaths.quiz
 
@@ -22,7 +22,6 @@ class QuizResultScreen extends ConsumerWidget {
         body: Center(
           child: AppButton(
             label: 'Quizlarga qaytish',
-            // ✅ 1-KUN FIX: RoutePaths ishlatildi
             onPressed: () => context.go(RoutePaths.quiz),
           ),
         ),
@@ -43,7 +42,7 @@ class QuizResultScreen extends ConsumerWidget {
         : pct >= 70
             ? 'Juda yaxshi!'
             : pct >= 60
-                ? 'O\'tdingiz!'
+                ? "O'tdingiz!"
                 : 'Harakat qiling!';
 
     return Scaffold(
@@ -55,7 +54,6 @@ class QuizResultScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Natija doirasi
             Container(
               width: 160,
               height: 160,
@@ -97,16 +95,15 @@ class QuizResultScreen extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 24),
-            // Statistika
             _StatRow(
               icon: Icons.check_circle,
-              label: 'To\'g\'ri',
+              label: "To'g'ri",
               value: '${attempt.answers.where((a) => a.isCorrect).length} ta',
               color: AppColors.success,
             ),
             _StatRow(
               icon: Icons.cancel,
-              label: 'Noto\'g\'ri',
+              label: "Noto'g'ri",
               value: '${attempt.answers.where((a) => !a.isCorrect).length} ta',
               color: AppColors.error,
             ),
@@ -124,7 +121,6 @@ class QuizResultScreen extends ConsumerWidget {
               color: Colors.orange,
             ),
             const SizedBox(height: 32),
-            // Tugmalar
             AppButton(
               label: '🔄 Qayta urinish',
               onPressed: () => context.pop(),
@@ -133,7 +129,6 @@ class QuizResultScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             AppButton(
               label: 'Quizlarga qaytish',
-              // ✅ 1-KUN FIX: RoutePaths ishlatildi
               onPressed: () => context.go(RoutePaths.quiz),
             ),
           ],

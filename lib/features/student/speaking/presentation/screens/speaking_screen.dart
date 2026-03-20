@@ -28,6 +28,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:my_first_app/core/constants/api_endpoints.dart';
 import 'package:my_first_app/core/providers/firebase_providers.dart';
 import 'package:my_first_app/core/theme/app_colors.dart';
+import 'package:my_first_app/core/widgets/sozana_loading_animation.dart';
 import 'package:my_first_app/features/student/speaking/data/models/speaking_model.dart';
 import 'package:my_first_app/features/student/speaking/domain/entities/speaking_exercise.dart';
 import 'package:my_first_app/features/student/speaking/presentation/providers/speaking_provider.dart';
@@ -395,17 +396,8 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
         );
       }
       // Yuklanmoqda
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Yuklanmoqda...', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-        ),
+      return Scaffold(
+        body: const SpeakingLoadingWidget(),
       );
     }
     if (_showResult && _assessmentResult != null) {
@@ -693,8 +685,12 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                        child: SozonaLoadingAnimation(
+                          style: LoadingStyle.dots,
+                          primaryColor: Colors.white,
+                          secondaryColor: Colors.white70,
+                          size: 18,
+                        ),
                       )
                     : const Icon(Icons.auto_awesome, size: 18),
                 label: Text(
