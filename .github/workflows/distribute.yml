@@ -29,7 +29,6 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.4'
-          
           cache: true
 
       # 4. Dependencies
@@ -46,7 +45,7 @@ jobs:
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_CREDENTIALS }}
-          groups: testers          # Firebase da yaratgan tester guruh nomi
+          testers: mirsaidibrohimov22@gmail.com
           file: build/app/outputs/flutter-apk/app-release.apk
           releaseNotes: |
             Branch: ${{ github.ref_name }}
