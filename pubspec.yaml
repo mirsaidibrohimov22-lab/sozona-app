@@ -5,6 +5,7 @@ version: 1.0.0+1
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.4 <4.0.0"
 
 dependencies:
   flutter:
@@ -24,8 +25,8 @@ dependencies:
   cloud_functions: ^6.0.6
   firebase_app_check: ^0.4.1+5
 
-  # ✅ Notifications
-  flutter_local_notifications: ^17.2.4
+  # ✅ Notifications — exact pin (^ yo'q, CI boshqa versiya olmaydi)
+  flutter_local_notifications: 17.2.4
 
   # 🏗️ STATE MANAGEMENT
   flutter_riverpod: ^2.6.1
@@ -71,6 +72,7 @@ dependencies:
   equatable: ^2.0.7
   dartz: ^0.10.1
   rxdart: ^0.28.0
+  # ✅ Flutter 3.27.4 intl 0.19.0 talab qiladi
   intl: ^0.19.0
   url_launcher: ^6.3.1
   share_plus: ^10.1.4
