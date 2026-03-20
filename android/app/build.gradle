@@ -23,8 +23,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.sozona"
-        // ✅ flutter.minSdkVersion (21) → 23 (cloud_firestore talab qiladi)
-        minSdkVersion 23
+        // ✅ flutter_sound + cloud_firestore talab qiladi
+        minSdkVersion 24
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
