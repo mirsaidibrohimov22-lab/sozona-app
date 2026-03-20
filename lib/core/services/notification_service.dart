@@ -1,6 +1,6 @@
 // lib/core/services/notification_service.dart
 // So'zona — Push notification servisi (FCM)
-// ✅ flutter_local_notifications ^18.x API
+// ✅ flutter_local_notifications 17.2.4
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,16 +22,8 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'teacher_content',
-    'O\'qituvchi kontentlari',
-    description: 'O\'qituvchi yuborgan mashqlar haqida bildirishnomalar',
-    importance: Importance.high,
-  );
-
   static Future<void> init() async {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
     await _setupLocalNotifications();
 
     final settings = await _messaging.requestPermission(
@@ -56,11 +48,6 @@ class NotificationService {
   // ── Local notifications setup ──────────────────────────────
   static Future<void> _setupLocalNotifications() async {
     try {
-      final androidPlugin =
-          _localNotifications.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-      await androidPlugin?.createNotificationChannel(_channel);
-
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosInit = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -69,11 +56,22 @@ class NotificationService {
       );
 
       await _localNotifications.initialize(
-        settings: const InitializationSettings(
+        const InitializationSettings(
           android: androidInit,
           iOS: iosInit,
         ),
       );
+
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'teacher_content',
+        'O\'qituvchi kontentlari',
+        description: 'O\'qituvchi yuborgan mashqlar haqida bildirishnomalar',
+        importance: Importance.high,
+      );
+
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          _localNotifications.resolvePlatformSpecificImplementation();
+      await androidPlugin?.createNotificationChannel(channel);
     } catch (e) {
       debugPrint('⚠️ Local notifications setup xatosi: $e');
     }
@@ -88,14 +86,15 @@ class NotificationService {
 
     if (notification != null) {
       _localNotifications.show(
-        id: notification.hashCode,
-        title: notification.title,
-        body: notification.body,
-        notificationDetails: NotificationDetails(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
           android: AndroidNotificationDetails(
-            _channel.id,
-            _channel.name,
-            channelDescription: _channel.description,
+            'teacher_content',
+            'O\'qituvchi kontentlari',
+            channelDescription:
+                'O\'qituvchi yuborgan mashqlar haqida bildirishnomalar',
             icon: android?.smallIcon ?? '@mipmap/ic_launcher',
             importance: Importance.high,
             priority: Priority.high,
@@ -158,7 +157,7 @@ class NotificationService {
     try {
       await cancelDailyReminders();
 
-      const details = NotificationDetails(
+      const NotificationDetails details = NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_reminder',
           'Kunlik eslatmalar',
@@ -174,29 +173,29 @@ class NotificationService {
       );
 
       await _localNotifications.periodicallyShow(
-        id: 1001,
-        title: 'Xayrli tong! ☀️',
-        body: 'Bugungi mashqni boshlash vaqti. Daraxtingizni sug\'oring! 🌱',
-        repeatInterval: RepeatInterval.daily,
-        notificationDetails: details,
+        1001,
+        'Xayrli tong! ☀️',
+        'Bugungi mashqni boshlash vaqti. Daraxtingizni sug\'oring! 🌱',
+        RepeatInterval.daily,
+        details,
         androidScheduleMode: AndroidScheduleMode.inexact,
       );
 
       await _localNotifications.periodicallyShow(
-        id: 1002,
-        title: 'Tushlik payti mashq! 🧠',
-        body: 'Kunlik maqsadingizning yarmiga yetdingizmi? 5 daqiqa yetarli!',
-        repeatInterval: RepeatInterval.daily,
-        notificationDetails: details,
+        1002,
+        'Tushlik payti mashq! 🧠',
+        'Kunlik maqsadingizning yarmiga yetdingizmi? 5 daqiqa yetarli!',
+        RepeatInterval.daily,
+        details,
         androidScheduleMode: AndroidScheduleMode.inexact,
       );
 
       await _localNotifications.periodicallyShow(
-        id: 1003,
-        title: 'Kechqurun eslatma 🌙',
-        body: 'Bugun hali mashq qilmadingizmi? Streakingizni yo\'qotmang! 🔥',
-        repeatInterval: RepeatInterval.daily,
-        notificationDetails: details,
+        1003,
+        'Kechqurun eslatma 🌙',
+        'Bugun hali mashq qilmadingizmi? Streakingizni yo\'qotmang! 🔥',
+        RepeatInterval.daily,
+        details,
         androidScheduleMode: AndroidScheduleMode.inexact,
       );
 
@@ -208,9 +207,9 @@ class NotificationService {
 
   static Future<void> cancelDailyReminders() async {
     try {
-      await _localNotifications.cancel(id: 1001);
-      await _localNotifications.cancel(id: 1002);
-      await _localNotifications.cancel(id: 1003);
+      await _localNotifications.cancel(1001);
+      await _localNotifications.cancel(1002);
+      await _localNotifications.cancel(1003);
     } catch (e) {
       debugPrint('⚠️ Eslatma bekor qilish xatolik: $e');
     }
