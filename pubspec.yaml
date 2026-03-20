@@ -31,7 +31,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
 
   # 🧭 NAVIGATION
-  go_router: ^17.1.0
+  go_router: ^14.0.0
 
   # 🌐 NETWORK
   dio: ^5.7.0
@@ -63,7 +63,7 @@ dependencies:
   cached_network_image: ^3.4.1
   fl_chart: ^1.1.1
   flutter_svg: ^2.0.16
-  google_fonts: ^6.2.1
+  google_fonts: ^6.1.0
 
   # 🔧 UTIL
   logger: ^2.5.0
