@@ -1,6 +1,6 @@
 // lib/core/services/notification_service.dart
 // So'zona — Push notification servisi (FCM)
-// ✅ flutter_local_notifications ^20.x API bilan mos
+// ✅ flutter_local_notifications ^18.x API
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +10,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:my_first_app/core/services/logger_service.dart';
 
-/// Background message handler (top-level function bo'lishi SHART)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   LoggerService.info('Background xabar: ${message.messageId}');
@@ -57,10 +56,10 @@ class NotificationService {
   // ── Local notifications setup ──────────────────────────────
   static Future<void> _setupLocalNotifications() async {
     try {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_channel);
+      final androidPlugin =
+          _localNotifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(_channel);
 
       const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosInit = DarwinInitializationSettings(
@@ -69,7 +68,6 @@ class NotificationService {
         requestSoundPermission: true,
       );
 
-      // ✅ v20: initialize named parameters
       await _localNotifications.initialize(
         settings: const InitializationSettings(
           android: androidInit,
@@ -89,7 +87,6 @@ class NotificationService {
     final android = message.notification?.android;
 
     if (notification != null) {
-      // ✅ v20: show() named parameters
       _localNotifications.show(
         id: notification.hashCode,
         title: notification.title,
@@ -156,7 +153,7 @@ class NotificationService {
     }
   }
 
-  // ── Kunlik 3 mahal eslatmalar ───────────────────────────────
+  // ── Kunlik eslatmalar ───────────────────────────────────────
   static Future<void> scheduleDailyReminders() async {
     try {
       await cancelDailyReminders();
@@ -176,7 +173,6 @@ class NotificationService {
         ),
       );
 
-      // ✅ v20: periodicallyShow named parameters
       await _localNotifications.periodicallyShow(
         id: 1001,
         title: 'Xayrli tong! ☀️',
@@ -212,7 +208,6 @@ class NotificationService {
 
   static Future<void> cancelDailyReminders() async {
     try {
-      // ✅ v20: cancel named parameter
       await _localNotifications.cancel(id: 1001);
       await _localNotifications.cancel(id: 1002);
       await _localNotifications.cancel(id: 1003);
