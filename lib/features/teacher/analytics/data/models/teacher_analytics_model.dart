@@ -37,7 +37,8 @@ class ClassAnalyticsModel extends ClassAnalytics {
     Map<String, String> memberNames = const {},
   }) {
     final now = DateTime.now();
-    final since24h = now.subtract(const Duration(hours: 24));
+    final since24h =
+        now.subtract(const Duration(days: 7)); // 7 kun ichida aktiv bo'lganlar
 
     final activeSet = <String>{};
     final allScores = <double>[];

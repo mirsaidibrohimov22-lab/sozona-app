@@ -1,12 +1,17 @@
-//lib/features/student/flashcards/presentation/providers/flashcard_provider.dart
+// lib/features/student/flashcards/presentation/providers/flashcard_provider.dart
 // So'zona — Flashcard Riverpod providerlar
-// Papkalar, kartochkalar, takrorlash holati
+// ✅ FIX 1: FoldersNotifier — userId saqlanadi, deleteFolder ga uzatiladi
+// ✅ FIX 2: CardsNotifier.loadCards — userId parametri qo'shildi
+// ✅ FIX 3: ReviewSessionNotifier.startFolderReview — barcha kartochkalar
+//    yuklanadi (faqat due emas), rateCard loop qiladi noto'g'ri kartochkalarni
+// ✅ FIX 4: ReviewSessionState — totalInitialCards qo'shildi (progress uchun)
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:my_first_app/core/providers/network_provider.dart';
 import 'package:my_first_app/core/services/activity_tracker.dart';
 import 'package:my_first_app/core/services/member_progress_service.dart';
+import 'package:my_first_app/features/auth/domain/entities/user_entity.dart'; // ✅ FIX: LearningLanguage
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/student/flashcards/data/datasources/flashcard_local_datasource.dart';
 import 'package:my_first_app/features/student/flashcards/data/datasources/flashcard_remote_datasource.dart';
@@ -14,6 +19,7 @@ import 'package:my_first_app/features/student/flashcards/data/repositories/flash
 import 'package:my_first_app/features/student/flashcards/domain/entities/flashcard_entity.dart';
 import 'package:my_first_app/features/student/flashcards/domain/entities/folder_entity.dart';
 import 'package:my_first_app/features/student/flashcards/domain/repositories/flashcard_repository.dart';
+import 'package:my_first_app/core/services/notification_service.dart';
 import 'package:my_first_app/features/student/flashcards/domain/usecases/create_card.dart';
 import 'package:my_first_app/features/student/flashcards/domain/usecases/create_folder.dart';
 import 'package:my_first_app/features/student/flashcards/domain/usecases/get_folders.dart';
@@ -24,7 +30,7 @@ import 'package:my_first_app/features/student/flashcards/domain/usecases/review_
 final flashcardLocalDataSourceProvider =
     Provider<FlashcardLocalDataSource>((ref) {
   final ds = FlashcardLocalDataSourceImpl();
-  ds.init(); // Async init — startup'da chaqiriladi
+  ds.init();
   return ds;
 });
 
@@ -63,7 +69,6 @@ final reviewCardUseCaseProvider = Provider<ReviewCard>((ref) {
 
 // ─── PAPKALAR HOLATI ───
 
-/// Papkalar ro'yxati holati
 class FoldersState {
   final List<FolderEntity> folders;
   final bool isLoading;
@@ -88,11 +93,12 @@ class FoldersState {
   }
 }
 
-/// Papkalar notifier
+/// ✅ FIX: userId notifier ichida saqlanadi
 class FoldersNotifier extends StateNotifier<FoldersState> {
   final GetFolders _getFolders;
   final CreateFolder _createFolder;
   final FlashcardRepository _repository;
+  String _userId = '';
 
   FoldersNotifier({
     required GetFolders getFolders,
@@ -103,8 +109,8 @@ class FoldersNotifier extends StateNotifier<FoldersState> {
         _repository = repository,
         super(const FoldersState());
 
-  /// Papkalarni yuklash
   Future<void> loadFolders(String userId) async {
+    _userId = userId;
     state = state.copyWith(isLoading: true);
 
     final result = await _getFolders(GetFoldersParams(userId: userId));
@@ -121,7 +127,6 @@ class FoldersNotifier extends StateNotifier<FoldersState> {
     );
   }
 
-  /// Yangi papka yaratish
   Future<bool> createFolder({
     required String userId,
     required String name,
@@ -157,9 +162,12 @@ class FoldersNotifier extends StateNotifier<FoldersState> {
     );
   }
 
-  /// Papka o'chirish
+  /// ✅ FIX: userId to'g'ri uzatiladi — oldin permission xatosi bo'lardi
   Future<bool> deleteFolder(String folderId) async {
-    final result = await _repository.deleteFolder(folderId: folderId);
+    final result = await _repository.deleteFolder(
+      folderId: folderId,
+      userId: _userId,
+    );
 
     return result.fold(
       (failure) {
@@ -175,13 +183,11 @@ class FoldersNotifier extends StateNotifier<FoldersState> {
     );
   }
 
-  /// Xatolikni tozalash
   void clearError() {
     state = state.copyWith(error: null);
   }
 }
 
-/// Papkalar provider
 final foldersProvider =
     StateNotifierProvider<FoldersNotifier, FoldersState>((ref) {
   return FoldersNotifier(
@@ -193,7 +199,6 @@ final foldersProvider =
 
 // ─── KARTOCHKALAR HOLATI ───
 
-/// Kartochkalar ro'yxati holati
 class CardsState {
   final List<FlashcardEntity> cards;
   final bool isLoading;
@@ -222,7 +227,6 @@ class CardsState {
   }
 }
 
-/// Kartochkalar notifier
 class CardsNotifier extends StateNotifier<CardsState> {
   final FlashcardRepository _repository;
   final CreateCard _createCard;
@@ -234,11 +238,14 @@ class CardsNotifier extends StateNotifier<CardsState> {
         _createCard = createCard,
         super(const CardsState());
 
-  /// Papkadagi kartochkalarni yuklash
-  Future<void> loadCards(String folderId) async {
+  /// ✅ FIX: userId qo'shildi — Firestore rules uchun zarur
+  Future<void> loadCards(String folderId, String userId) async {
     state = state.copyWith(isLoading: true, currentFolderId: folderId);
 
-    final result = await _repository.getCards(folderId: folderId);
+    final result = await _repository.getCards(
+      folderId: folderId,
+      userId: userId,
+    );
 
     result.fold(
       (failure) => state = state.copyWith(
@@ -252,7 +259,6 @@ class CardsNotifier extends StateNotifier<CardsState> {
     );
   }
 
-  /// Yangi kartochka yaratish
   Future<bool> createCard({
     required String folderId,
     required String userId,
@@ -292,7 +298,6 @@ class CardsNotifier extends StateNotifier<CardsState> {
     );
   }
 
-  /// Kartochka o'chirish
   Future<bool> deleteCard(String cardId) async {
     final result = await _repository.deleteCard(cardId: cardId);
 
@@ -310,13 +315,11 @@ class CardsNotifier extends StateNotifier<CardsState> {
     );
   }
 
-  /// Xatolikni tozalash
   void clearError() {
     state = state.copyWith(error: null);
   }
 }
 
-/// Kartochkalar provider
 final cardsProvider = StateNotifierProvider<CardsNotifier, CardsState>((ref) {
   return CardsNotifier(
     repository: ref.watch(flashcardRepositoryProvider),
@@ -326,7 +329,7 @@ final cardsProvider = StateNotifierProvider<CardsNotifier, CardsState>((ref) {
 
 // ─── TAKRORLASH HOLATI ───
 
-/// Takrorlash sessiyasi holati
+/// ✅ FIX: totalInitialCards qo'shildi — progress to'g'ri hisoblash uchun
 class ReviewSessionState {
   final List<FlashcardEntity> cards;
   final int currentIndex;
@@ -335,6 +338,7 @@ class ReviewSessionState {
   final bool isCompleted;
   final int correctCount;
   final int incorrectCount;
+  final int totalInitialCards;
   final String? error;
 
   const ReviewSessionState({
@@ -345,21 +349,23 @@ class ReviewSessionState {
     this.isCompleted = false,
     this.correctCount = 0,
     this.incorrectCount = 0,
+    this.totalInitialCards = 0,
     this.error,
   });
 
-  /// Hozirgi kartochka
   FlashcardEntity? get currentCard =>
-      currentIndex < cards.length ? cards[currentIndex] : null;
+      cards.isNotEmpty && currentIndex < cards.length
+          ? cards[currentIndex]
+          : null;
 
-  /// Jami ko'rilgan
   int get totalReviewed => correctCount + incorrectCount;
 
-  /// Qolgan kartochkalar
-  int get remaining => cards.length - currentIndex;
+  /// Qolgan (noto'g'ri + ko'rilmagan)
+  int get remaining => cards.length;
 
-  /// Progress (0.0 - 1.0)
-  double get progress => cards.isEmpty ? 0 : currentIndex / cards.length;
+  /// Progress: nechta to'g'ri javob berildi / jami kartochkalar
+  double get progress =>
+      totalInitialCards == 0 ? 0 : correctCount / totalInitialCards;
 
   ReviewSessionState copyWith({
     List<FlashcardEntity>? cards,
@@ -369,6 +375,7 @@ class ReviewSessionState {
     bool? isCompleted,
     int? correctCount,
     int? incorrectCount,
+    int? totalInitialCards,
     String? error,
   }) {
     return ReviewSessionState(
@@ -379,32 +386,43 @@ class ReviewSessionState {
       isCompleted: isCompleted ?? this.isCompleted,
       correctCount: correctCount ?? this.correctCount,
       incorrectCount: incorrectCount ?? this.incorrectCount,
+      totalInitialCards: totalInitialCards ?? this.totalInitialCards,
       error: error,
     );
   }
 }
 
-/// Takrorlash sessiyasi notifier
 class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
   final FlashcardRepository _repository;
   final ReviewCard _reviewCard;
-  // ✅ FIX: member progress yangilash uchun userId
   final String _userId;
+  // ✅ FIX: hardcoded 'de'/'A1' o'rniga user profildan olinadi
+  final String _language;
+  final String _level;
 
   ReviewSessionNotifier({
     required FlashcardRepository repository,
     required ReviewCard reviewCard,
     String userId = '',
+    String language = 'en',
+    String level = 'A1',
   })  : _repository = repository,
         _reviewCard = reviewCard,
         _userId = userId,
+        _language = language,
+        _level = level,
         super(const ReviewSessionState());
 
-  /// Takrorlash sessiyasini boshlash (papka bo'yicha)
-  Future<void> startFolderReview(String folderId) async {
+  /// ✅ FIX: Barcha papka kartochkalari yuklanadi (faqat due emas)
+  /// Sabab: foydalanuvchi papkani ochganda BARCHA kartochkalarni ko'rmoqchi
+  /// Noto'g'ri javob bersa, kartochka dekaning oxiriga qaytadi
+  Future<void> startFolderReview(String folderId, String userId) async {
     state = state.copyWith(isLoading: true);
 
-    final result = await _repository.getCards(folderId: folderId);
+    final result = await _repository.getCards(
+      folderId: folderId,
+      userId: userId,
+    );
 
     result.fold(
       (failure) => state = state.copyWith(
@@ -412,25 +430,24 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
         error: failure.message,
       ),
       (cards) {
-        // Takrorlashga tayyor kartochkalarni filter qilish
-        final dueCards = cards.where((c) => c.isDueForReview).toList();
-        // Aralashtirish
-        dueCards.shuffle();
+        // Barcha o'chirilmagan kartochkalar
+        final allCards = cards.where((c) => !c.isDeleted).toList();
+        allCards.shuffle();
 
         state = state.copyWith(
           isLoading: false,
-          cards: dueCards,
+          cards: allCards,
           currentIndex: 0,
           isFlipped: false,
-          isCompleted: dueCards.isEmpty,
+          isCompleted: allCards.isEmpty,
           correctCount: 0,
           incorrectCount: 0,
+          totalInitialCards: allCards.length,
         );
       },
     );
   }
 
-  /// Due kartochkalarni takrorlash
   Future<void> startDueReview(String userId) async {
     state = state.copyWith(isLoading: true);
 
@@ -451,22 +468,25 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
           isCompleted: cards.isEmpty,
           correctCount: 0,
           incorrectCount: 0,
+          totalInitialCards: cards.length,
         );
       },
     );
   }
 
-  /// Kartochkani ag'darish
   void flipCard() {
     state = state.copyWith(isFlipped: !state.isFlipped);
   }
 
-  /// Baholash va keyingisiga o'tish
+  /// ✅ FIX: Review loop — noto'g'ri kartochkalar dekaning oxiriga qaytariladi
+  /// To'g'ri javob: kartochka dekadan o'chiriladi
+  /// Noto'g'ri javob: kartochka oxiriga o'tkaziladi, qaytadan ko'rsatiladi
+  /// Sessiya: BARCHA kartochkalar to'g'ri javob olganda tugaydi
   Future<void> rateCard(int quality) async {
     final card = state.currentCard;
     if (card == null) return;
 
-    // Natijani saqlash
+    // SM-2 algoritmida saqlash
     await _reviewCard(
       ReviewCardParams(
         cardId: card.id,
@@ -475,37 +495,69 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
     );
 
     final isCorrect = quality >= 3;
-    final nextIndex = state.currentIndex + 1;
-    final isLast = nextIndex >= state.cards.length;
-
     final newCorrect = isCorrect ? state.correctCount + 1 : state.correctCount;
     final newIncorrect =
         !isCorrect ? state.incorrectCount + 1 : state.incorrectCount;
 
+    // Kartochkalar ro'yxatini yangilash
+    final currentCards = List<FlashcardEntity>.from(state.cards);
+
+    if (isCorrect) {
+      // ✅ To'g'ri javob: kartochkani ro'yxatdan olib tashlaymiz
+      currentCards.removeAt(state.currentIndex);
+      // ✅ EBBINGHAUS: to'g'ri javob berilganda notifikatsiya rejalashtirish
+      // card.isNew — hali hech qachon to'g'ri javob berilmagan karta
+      // card.isMastered — difficulty == CardDifficulty.mastered
+      if (card.isNew || card.correctCount <= 1) {
+        // Birinchi marta — barcha 8 ta intervalga notif qo'yish
+        NotificationService.scheduleFlashcardReviews(
+          cardId: card.id,
+          cardFront: card.front,
+          folderId: card.folderId,
+        );
+      } else if (card.isMastered) {
+        // To'liq o'zlashtirilgan — barcha notiflarni bekor qilish
+        NotificationService.onCardMastered(card.id);
+      }
+    } else {
+      // ✅ Noto'g'ri javob: kartochkani oxiriga o'tkazamiz
+      currentCards.removeAt(state.currentIndex);
+      currentCards.add(card);
+    }
+
+    final isCompleted = currentCards.isEmpty;
+
+    // currentIndex chegaradan chiqmasligi uchun
+    int nextIndex = state.currentIndex;
+    if (!isCompleted && nextIndex >= currentCards.length) {
+      nextIndex = 0;
+    }
+
     state = state.copyWith(
+      cards: currentCards,
       currentIndex: nextIndex,
       isFlipped: false,
-      isCompleted: isLast,
+      isCompleted: isCompleted,
       correctCount: newCorrect,
       incorrectCount: newIncorrect,
     );
 
-    // ✅ Sessiya tugaganda XP/Streak uchun activity yozish
-    if (isLast) {
-      final total = newCorrect + newIncorrect;
+    // Sessiya tugaganda activity va progress yozamiz
+    if (isCompleted) {
+      final total = state.totalInitialCards;
       final score = total > 0 ? (newCorrect / total) * 100 : 0.0;
       ActivityTracker.recordFlashcard(
         topic: 'flashcard_review',
-        language: 'de',
-        level: 'A1',
+        language: _language, // ✅ FIX: user profildan
+        level: _level, // ✅ FIX: user profildan
         correctAnswers: newCorrect,
         wrongAnswers: newIncorrect,
         responseTime: 0,
         scorePercent: score,
       );
-      // ✅ FIX: Member progress yangilash — barcha sinflarda averageScore yangilanadi
       if (_userId.isNotEmpty) {
-        MemberProgressService.instance.recordAttempt(
+        await MemberProgressService.instance.recordAttempt(
+          // ✅ FIX: await qo'shildi
           userId: _userId,
           scorePercent: score,
           skillType: 'flashcard',
@@ -514,21 +566,25 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
     }
   }
 
-  /// Sessiyani qayta boshlash
   void reset() {
     state = const ReviewSessionState();
   }
 }
 
-/// Takrorlash sessiyasi provider
 final reviewSessionProvider =
     StateNotifierProvider<ReviewSessionNotifier, ReviewSessionState>((ref) {
-  // ✅ FIX: userId ni provider ga uzatamiz
-  final userId = ref.watch(authNotifierProvider).user?.id ?? '';
+  final user = ref.watch(authNotifierProvider).user;
+  final userId = user?.id ?? '';
+  // ✅ FIX: user profildan language va level olinadi
+  final language =
+      user?.learningLanguage == LearningLanguage.german ? 'de' : 'en';
+  final level = user?.level.name.toUpperCase() ?? 'A1';
   return ReviewSessionNotifier(
     repository: ref.watch(flashcardRepositoryProvider),
     reviewCard: ref.watch(reviewCardUseCaseProvider),
     userId: userId,
+    language: language,
+    level: level,
   );
 });
 
@@ -592,7 +648,6 @@ class FlashcardPracticeNotifier extends StateNotifier<FlashcardPracticeState> {
     result.fold(
       (f) => state = state.copyWith(isLoading: false, error: f.message),
       (cards) {
-        // Filter by folder if provided
         final filtered = folderId.isNotEmpty
             ? cards.where((c) => c.folderId == folderId).toList()
             : cards;
@@ -612,7 +667,6 @@ class FlashcardPracticeNotifier extends StateNotifier<FlashcardPracticeState> {
   Future<void> rate(String userId, double score) async {
     final card = state.currentCard;
     if (card == null || !mounted) return;
-    // quality 0-5 from score 0.0-1.0
     final quality = (score * 5).round().clamp(0, 5);
     await _repo.reviewCard(cardId: card.id, quality: quality);
     if (!mounted) return;

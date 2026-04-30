@@ -22,8 +22,9 @@ class StreakCard extends StatelessWidget {
       borderColor: streak.todayCompleted
           ? AppColors.streak.withValues(alpha: 0.3)
           : AppColors.bgTertiary,
-      backgroundColor:
-          streak.todayCompleted ? AppColors.streak.withValues(alpha: 0.05) : null,
+      backgroundColor: streak.todayCompleted
+          ? AppColors.streak.withValues(alpha: 0.05)
+          : null,
       padding: const EdgeInsets.all(AppSizes.spacingMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

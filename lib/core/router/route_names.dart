@@ -1,13 +1,10 @@
 // lib/core/router/route_names.dart
 // So'zona — Barcha yo'l (route) nomlari va pathlari
-// ✅ 1-KUN FIX: Barcha route pathlari markazlashtirildi
-// ✅ 1-KUN FIX: Flashcard review, quiz result, listening result qo'shildi
-// ✅ 1-KUN FIX: Noto'g'ri va takroriy pathlar olib tashlandi
-// ✅ REFACTOR FIX: teacherProfile route qo'shildi
-//   SABAB: Teacher shell'ga 4-tab (Profil) qo'shildi,
-//          uning path va name'i kerak
+// ✅ YANGI: books va bookReader route qo'shildi
+// ✅ YANGI: premiumExpired (loss aversion ekrani)
+// ✅ YANGI: leaderboard (IELTS kampaniyasi reytingi)
+// ✅ YANGI: voiceAssistant — ovozli yordamchi
 
-/// Route nomlari — barcha ekranlar uchun yagona manba
 abstract class RouteNames {
   // ─── Auth ───
   static const String splash = 'splash';
@@ -34,6 +31,7 @@ abstract class RouteNames {
   static const String listeningDetail = 'listening-detail';
   static const String speaking = 'speaking';
   static const String speakingSession = 'speaking-session';
+  static const String aiTutor = 'ai-tutor';
   static const String aiChat = 'ai-chat';
   static const String artikel = 'artikel';
   static const String artikelPractice = 'artikel-practice';
@@ -52,7 +50,6 @@ abstract class RouteNames {
   static const String contentGenerator = 'content-generator';
   static const String contentPreview = 'content-preview';
   static const String teacherAnalytics = 'teacher-analytics';
-  // ✅ YANGI: Teacher profil tab uchun alohida route name
   static const String teacherProfile = 'teacher-profile';
   static const String publishing = 'publishing';
 
@@ -61,11 +58,27 @@ abstract class RouteNames {
   static const String settings = 'settings';
   static const String notifications = 'notifications';
   static const String privacy = 'privacy';
+
+  // ✅ YANGI: Referral tizimi
+  static const String referral = 'referral';
+
+  // ─── Premium ───
+  static const String premium = 'premium';
+  static const String premiumCoach = 'premium-coach';
+  // ✅ YANGI: Loss aversion ekrani
+  static const String premiumExpired = 'premium-expired';
+
+  // ✅ YANGI: Kitoblar
+  static const String books = 'books';
+  static const String bookReader = 'book-reader';
+
+  // ✅ YANGI: Leaderboard
+  static const String leaderboard = 'leaderboard';
+
+  // ✅ YANGI: Ovozli yordamchi
+  static const String voiceAssistant = 'voice-assistant';
 }
 
-/// Route yo'llari — barcha screen uchun yagona path manbai
-/// ⚠️ QOIDA: Hech qayerda path string hardcode qilinmasin!
-/// Faqat RoutePaths.xxx ishlatilsin.
 abstract class RoutePaths {
   // ─── Auth ───
   static const String splash = '/';
@@ -92,6 +105,7 @@ abstract class RoutePaths {
   static const String listeningDetail = '/student/listening/:id';
   static const String speaking = '/student/speaking';
   static const String speakingSession = '/student/speaking/:id';
+  static const String aiTutor = '/student/ai-tutor';
   static const String aiChat = '/student/ai-chat';
   static const String artikel = '/student/artikel';
   static const String artikelPractice = '/student/artikel/:id';
@@ -100,8 +114,6 @@ abstract class RoutePaths {
   static const String joinClass = '/student/join-class';
   static const String studentClasses = '/student/classes';
   static const String studentClassDetail = '/student/classes/:id';
-
-  static String studentClassDetailPath(String id) => '/student/classes/$id';
 
   // ─── Teacher ───
   static const String teacherDashboard = '/teacher/dashboard';
@@ -113,56 +125,51 @@ abstract class RoutePaths {
   static const String contentGenerator = '/teacher/content-generator';
   static const String contentPreview = '/teacher/content-preview';
   static const String teacherAnalytics = '/teacher/class/:classId/analytics';
-  // ✅ YANGI: Teacher shell ichidagi profil tab uchun alohida path
-  // /profile path student shell ichida bo'lgani uchun conflict bo'lmaslik uchun
-  // teacher shell uchun /teacher/profile path ishlatiladi
   static const String teacherProfile = '/teacher/profile';
   static const String publishing = '/teacher/publishing';
 
   // ─── Shared ───
-  // /profile — student shell ichida tab sifatida ishlatiladi
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String notifications = '/notifications';
   static const String privacy = '/privacy';
+  static const String premium = '/premium';
+  static const String premiumCoach = '/premium/coach';
+  // ✅ YANGI: Loss aversion ekrani
+  static const String premiumExpired = '/premium/expired';
 
-  // ─── Helper methodlar — dynamic path yaratish uchun ───
+  // ✅ YANGI: Referral tizimi
+  static const String referral = '/referral';
 
-  /// Speaking session: /student/speaking/abc123
+  // ✅ YANGI: Kitoblar
+  static const String books = '/premium/books';
+  static const String bookReader = '/premium/books/:level';
+
+  // ✅ YANGI: Leaderboard
+  static const String leaderboard = '/leaderboard';
+
+  // ✅ YANGI: Ovozli yordamchi
+  static const String voiceAssistant = '/student/voice-assistant';
+
+  // ─── Helper methodlar ───
   static String speakingSessionPath(String id) => '/student/speaking/$id';
-
-  /// Listening detail: /student/listening/abc123
   static String listeningDetailPath(String id) => '/student/listening/$id';
-
-  /// Quiz detail: /student/quiz/abc123
   static String quizDetailPath(String id) => '/student/quiz/$id';
-
-  /// Flashcard folder: /student/flashcards/folder/abc123
   static String flashcardFolderPath(String id) =>
       '/student/flashcards/folder/$id';
-
-  /// Flashcard detail (papka ichidagi kartochkalar): /student/flashcards/abc123
   static String flashcardDetailPath(String id) => '/student/flashcards/$id';
-
-  /// Flashcard practice: /student/flashcards/abc123/practice
   static String flashcardPracticePath(String id) =>
       '/student/flashcards/$id/practice';
-
-  /// Flashcard review: /student/flashcards/review/abc123
   static String flashcardReviewPath(String id) =>
       '/student/flashcards/review/$id';
-
-  /// Class detail: /teacher/classes/abc123
   static String classDetailPath(String id) => '/teacher/classes/$id';
-
-  /// Student detail: /teacher/classes/abc/student/xyz
   static String studentDetailPath(String classId, String studentId) =>
       '/teacher/classes/$classId/student/$studentId';
-
-  /// Teacher analytics: /teacher/class/abc123/analytics
   static String teacherAnalyticsPath(String classId) =>
       '/teacher/class/$classId/analytics';
-
-  /// Artikel practice: /student/artikel/abc123
   static String artikelPracticePath(String id) => '/student/artikel/$id';
+  static String studentClassDetailPath(String id) => '/student/classes/$id';
+
+  // ✅ YANGI: Kitob helper
+  static String bookReaderPath(String level) => '/premium/books/$level';
 }

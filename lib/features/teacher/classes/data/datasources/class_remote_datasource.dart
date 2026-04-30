@@ -1,45 +1,44 @@
-// QO'YISH: lib/features/teacher/classes/data/datasources/class_remote_datasource.dart
-// So'zona — Sinf Firestore DataSource
-// Firestore bilan to'g'ridan-to'g'ri muloqot
+// lib/features/teacher/classes/data/datasources/class_remote_datasource.dart
+// ✅ FIX v2.0: joinClassByCode → Cloud Function orqali (Firestore Rules bypass)
+// Sabab: Student classes/{id}/members/ ga to'g'ridan yoza olmaydi (PERMISSION_DENIED)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:my_first_app/core/error/exceptions.dart';
 import 'package:my_first_app/core/providers/firebase_providers.dart';
 import 'package:my_first_app/features/teacher/classes/data/models/class_model.dart';
 import 'package:my_first_app/features/teacher/classes/data/models/student_summary_model.dart';
 
-/// Sinf remote datasource interfeysi
 abstract class ClassRemoteDataSource {
-  /// O'qituvchi sinflarini Firestore'dan olish
   Future<List<ClassModel>> getClasses({required String teacherId});
 
-  /// Yangi sinf yaratish
   Future<ClassModel> createClass({
     required String name,
     String? description,
     required String teacherId,
     required String teacherName,
-    required String language,
-    required String level,
+    int maxStudents,
+    String? language,
+    String? level,
   });
 
-  /// Sinf ma'lumotlarini olish
-  Future<ClassModel> getClassById({required String classId});
-
-  /// Sinf ma'lumotlarini yangilash
   Future<ClassModel> updateClass({
     required String classId,
     String? name,
     String? description,
+    int? maxStudents,
     bool? isActive,
   });
 
-  /// Sinf a'zolari ro'yxatini olish
+  Future<void> deleteClass({required String classId});
+
+  Future<ClassModel> getClassById({required String classId});
+
+  // ✅ Xato 1 tuzatma: getClassMembers abstract methodga qo'shildi
   Future<List<StudentSummaryModel>> getClassMembers({required String classId});
 
-  /// Join code orqali sinf topish va qo'shilish
   Future<ClassModel> joinClassByCode({
     required String joinCode,
     required String studentId,
@@ -47,27 +46,27 @@ abstract class ClassRemoteDataSource {
     required String studentLevel,
   });
 
-  /// O'quvchini sinfdan chiqarish
   Future<void> removeStudentFromClass({
     required String classId,
     required String studentId,
   });
 
-  /// Student qo'shilgan sinflar
   Future<List<ClassModel>> getStudentClasses({required String studentId});
 }
 
-/// Firestore implementatsiyasi
 class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
 
-  ClassRemoteDataSourceImpl({required FirebaseFirestore firestore})
-      : _firestore = firestore;
+  ClassRemoteDataSourceImpl({
+    required FirebaseFirestore firestore,
+    FirebaseFunctions? functions,
+  })  : _firestore = firestore,
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
-  // ─── Firestore yo'llari ───
   CollectionReference get _classes => _firestore.collection('classes');
 
-  /// 6 belgili join code generatsiya qilish
   String _generateJoinCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = DateTime.now().millisecondsSinceEpoch;
@@ -103,74 +102,46 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
     String? description,
     required String teacherId,
     required String teacherName,
-    required String language,
-    required String level,
+    int maxStudents = 50,
+    String? language,
+    String? level,
   }) async {
     try {
-      // Join code yaratish — unique bo'lishini tekshirish
       String joinCode = _generateJoinCode();
-      bool isUnique = false;
-      int attempts = 0;
 
-      while (!isUnique && attempts < 10) {
+      // Join code unikal bo'lishini ta'minlash
+      bool isUnique = false;
+      while (!isUnique) {
         final existing = await _classes
             .where('joinCode', isEqualTo: joinCode)
             .limit(1)
             .get();
-
         if (existing.docs.isEmpty) {
           isUnique = true;
         } else {
           joinCode = _generateJoinCode();
-          attempts++;
         }
       }
 
-      final now = DateTime.now();
-      final docRef = _classes.doc();
+      final docRef = await _classes.add({
+        'name': name,
+        'description': description ?? '',
+        'teacherId': teacherId,
+        'teacherName': teacherName,
+        'joinCode': joinCode,
+        'memberCount': 0,
+        'maxStudents': maxStudents,
+        'isActive': true,
+        'language': language ?? 'english',
+        'level': level ?? 'A1',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-      final model = ClassModel(
-        id: docRef.id,
-        name: name,
-        description: description,
-        teacherId: teacherId,
-        teacherName: teacherName,
-        language: language,
-        level: level,
-        joinCode: joinCode,
-        memberCount: 0,
-        maxMembers: 50,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      await docRef.set(model.toFirestore());
-      return model;
+      return await getClassById(classId: docRef.id);
     } on FirebaseException catch (e) {
       throw ServerException(
         message: e.message ?? 'Sinf yaratib bo\'lmadi',
-        code: e.code,
-      );
-    }
-  }
-
-  @override
-  Future<ClassModel> getClassById({required String classId}) async {
-    try {
-      final doc = await _classes.doc(classId).get();
-
-      if (!doc.exists) {
-        throw const ServerException(
-          message: 'Sinf topilmadi',
-          code: 'NOT_FOUND',
-        );
-      }
-
-      return ClassModel.fromFirestore(doc);
-    } on FirebaseException catch (e) {
-      throw ServerException(
-        message: e.message ?? 'Sinf ma\'lumotlari yuklanmadi',
         code: e.code,
       );
     }
@@ -181,19 +152,20 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
     required String classId,
     String? name,
     String? description,
+    int? maxStudents,
     bool? isActive,
   }) async {
     try {
       final updateData = <String, dynamic>{
         'updatedAt': FieldValue.serverTimestamp(),
       };
-
       if (name != null) updateData['name'] = name;
       if (description != null) updateData['description'] = description;
+      if (maxStudents != null) updateData['maxStudents'] = maxStudents;
       if (isActive != null) updateData['isActive'] = isActive;
 
       await _classes.doc(classId).update(updateData);
-      return getClassById(classId: classId);
+      return await getClassById(classId: classId);
     } on FirebaseException catch (e) {
       throw ServerException(
         message: e.message ?? 'Sinf yangilanmadi',
@@ -203,25 +175,46 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
   }
 
   @override
-  Future<List<StudentSummaryModel>> getClassMembers({
-    required String classId,
-  }) async {
+  Future<void> deleteClass({required String classId}) async {
     try {
-      final snapshot = await _classes
-          .doc(classId)
-          .collection('members')
-          .orderBy('joinedAt', descending: false)
-          .get();
-
-      return snapshot.docs.map(StudentSummaryModel.fromFirestore).toList();
+      await _classes.doc(classId).update({
+        'isActive': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } on FirebaseException catch (e) {
       throw ServerException(
-        message: e.message ?? 'A\'zolar yuklanmadi',
+        message: e.message ?? 'Sinf o\'chirilmadi',
         code: e.code,
       );
     }
   }
 
+  @override
+  Future<ClassModel> getClassById({required String classId}) async {
+    try {
+      final doc = await _classes.doc(classId).get();
+      if (!doc.exists) {
+        throw const ServerException(
+          message: 'Sinf topilmadi',
+          code: 'CLASS_NOT_FOUND',
+        );
+      }
+      return ClassModel.fromFirestore(doc);
+    } on ServerException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        message: e.message ?? 'Sinf topilmadi',
+        code: e.code,
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ FIX: joinClassByCode → Cloud Function orqali
+  // Avval to'g'ridan Firestore ga yozardi → PERMISSION_DENIED xatosi
+  // Endi Cloud Function (admin huquqlari) orqali yozadi → ishlaydi
+  // ═══════════════════════════════════════════════════════════════
   @override
   Future<ClassModel> joinClassByCode({
     required String joinCode,
@@ -230,84 +223,53 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
     required String studentLevel,
   }) async {
     try {
-      // Join code bilan sinf topish
-      final snapshot = await _classes
-          .where('joinCode', isEqualTo: joinCode)
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
+      final callable = _functions.httpsCallable(
+        'joinClassByCode',
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 15),
+        ),
+      );
 
-      if (snapshot.docs.isEmpty) {
-        throw const ServerException(
-          message: 'Bunday kod bilan sinf topilmadi',
-          code: 'CLASS_NOT_FOUND',
-        );
-      }
-
-      final classDoc = snapshot.docs.first;
-      final classModel = ClassModel.fromFirestore(classDoc);
-
-      // Allaqachon a'zo emasligini tekshirish
-      final memberDoc = await _classes
-          .doc(classModel.id)
-          .collection('members')
-          .doc(studentId)
-          .get();
-
-      if (memberDoc.exists) {
-        throw const ServerException(
-          message: 'Siz bu sinfga allaqachon a\'zo siz',
-          code: 'ALREADY_MEMBER',
-        );
-      }
-
-      // Sinf to'liq emasligini tekshirish
-      if (classModel.isFull) {
-        throw const ServerException(
-          message: 'Sinf to\'liq. Boshqa sinfga qo\'shiling.',
-          code: 'CLASS_FULL',
-        );
-      }
-
-      // Transaction — atomik operatsiya
-      await _firestore.runTransaction((transaction) async {
-        final now = DateTime.now();
-
-        // 1. Members subcollection'ga qo'shish
-        final memberRef =
-            _classes.doc(classModel.id).collection('members').doc(studentId);
-
-        transaction.set(memberRef, {
-          'userId': studentId,
-          'fullName': studentName,
-          'level': studentLevel,
-          'joinedAt': Timestamp.fromDate(now),
-          'lastActiveAt': Timestamp.fromDate(now),
-          'averageScore': 0.0,
-          'totalAttempts': 0,
-          'currentStreak': 0,
-          'avatarUrl': null,
-        });
-
-        // 2. memberCount oshirish
-        transaction.update(
-          _classes.doc(classModel.id),
-          {
-            'memberCount': FieldValue.increment(1),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        );
+      final result = await callable.call({
+        'joinCode': joinCode.toUpperCase().trim(),
+        'studentName': studentName,
+        'studentLevel': studentLevel,
       });
 
-      // Yangilangan sinf ma'lumotlarini qaytarish
-      return getClassById(classId: classModel.id);
-    } on ServerException {
-      rethrow;
+      final data = result.data as Map<String, dynamic>;
+      final classId = data['classId'] as String;
+
+      // Sinf ma'lumotlarini Firestore dan to'liq olish
+      return await getClassById(classId: classId);
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('⚠️ joinClass Functions xatosi: ${e.code} — ${e.message}');
+      // Xato kodini o'zbek tiliga tarjima
+      final message = _translateFunctionsError(e.code, e.message);
+      throw ServerException(message: message, code: e.code);
     } on FirebaseException catch (e) {
       throw ServerException(
         message: e.message ?? 'Sinfga qo\'shib bo\'lmadi',
         code: e.code,
       );
+    } catch (e) {
+      throw ServerException(message: 'Sinfga qo\'shib bo\'lmadi: $e');
+    }
+  }
+
+  String _translateFunctionsError(String code, String? message) {
+    switch (code) {
+      case 'not-found':
+        return 'Bunday kod bilan sinf topilmadi';
+      case 'already-exists':
+        return 'Siz bu sinfga allaqachon a\'zo siz';
+      case 'resource-exhausted':
+        return 'Sinf to\'liq. Boshqa sinfga qo\'shiling.';
+      case 'unauthenticated':
+        return 'Tizimga kirish kerak';
+      case 'invalid-argument':
+        return 'Kod 6 ta belgidan iborat bo\'lishi kerak';
+      default:
+        return message ?? 'Sinfga qo\'shib bo\'lmadi';
     }
   }
 
@@ -318,12 +280,10 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
   }) async {
     try {
       await _firestore.runTransaction((transaction) async {
-        // 1. Members'dan o'chirish
         final memberRef =
             _classes.doc(classId).collection('members').doc(studentId);
         transaction.delete(memberRef);
 
-        // 2. memberCount kamaytirish
         transaction.update(
           _classes.doc(classId),
           {
@@ -340,40 +300,152 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
     }
   }
 
+  // ✅ Xato 1 tuzatma: getClassMembers implementatsiyasi qo'shildi
   @override
-  Future<List<ClassModel>> getStudentClasses({
-    required String studentId,
+  Future<List<StudentSummaryModel>> getClassMembers({
+    required String classId,
   }) async {
     try {
-      // ✅ FIX: collectionGroup ishlatmaymiz — u Firestore da murakkab path talab qiladi
-      // Yechim: barcha faol sinflarni olamiz, har birida members/{studentId} borligini tekshiramiz
-      // Bu rules bilan to'liq mos: "uid() == memberId" (memberId = studentId)
-      final allClassesSnap = await _firestore
-          .collection('classes')
-          .where('isActive', isEqualTo: true)
+      final snapshot = await _classes
+          .doc(classId)
+          .collection('members')
+          .orderBy('joinedAt', descending: false)
           .get();
 
-      final classes = <ClassModel>[];
-      for (final classDoc in allClassesSnap.docs) {
-        try {
-          // Har bir sinfda members/{studentId} document borligini tekshiramiz
-          final memberDoc = await _firestore
-              .collection('classes')
-              .doc(classDoc.id)
-              .collection('members')
-              .doc(studentId)
-              .get();
+      if (snapshot.docs.isEmpty) return [];
 
-          if (memberDoc.exists) {
-            final model = ClassModel.fromFirestore(classDoc);
-            classes.add(model);
+      final memberIds = snapshot.docs.map((d) => d.id).toList();
+
+      // ✅ YANGI: activities dan real statistika (members doc stale bo'lishi mumkin)
+      final since = Timestamp.fromDate(
+        DateTime.now().subtract(const Duration(days: 90)),
+      );
+
+      final activityMap = <String, List<Map<String, dynamic>>>{};
+      const batchSize = 30;
+      for (int i = 0; i < memberIds.length; i += batchSize) {
+        final batch = memberIds.skip(i).take(batchSize).toList();
+        try {
+          final actSnap = await _firestore
+              .collection('activities')
+              .where('userId', whereIn: batch)
+              .where('timestamp', isGreaterThan: since)
+              .get();
+          for (final doc in actSnap.docs) {
+            final data = doc.data();
+            final uid = data['userId'] as String? ?? '';
+            activityMap.putIfAbsent(uid, () => []).add(data);
           }
-        } catch (_) {
-          // Bitta sinf yuklanmasa ham davom etadi
+        } catch (_) {}
+      }
+
+      // Progress collectiondan streak
+      final progressMap = <String, int>{};
+      await Future.wait(memberIds.map((uid) async {
+        try {
+          final pDoc = await _firestore.collection('progress').doc(uid).get();
+          if (pDoc.exists) {
+            progressMap[uid] =
+                (pDoc.data()?['currentStreak'] as num?)?.toInt() ?? 0;
+          }
+        } catch (_) {}
+      }));
+
+      return snapshot.docs.map((doc) {
+        final base = StudentSummaryModel.fromFirestore(doc);
+        final acts = activityMap[doc.id] ?? [];
+
+        if (acts.isEmpty) {
+          // activities yo'q — members docdan kelgan qiymatlar
+          return StudentSummaryModel(
+            userId: base.userId,
+            fullName: base.fullName,
+            level: base.level,
+            joinedAt: base.joinedAt,
+            lastActiveAt: base.lastActiveAt,
+            averageScore: base.averageScore,
+            totalAttempts: base.totalAttempts,
+            currentStreak: progressMap[doc.id] ?? base.currentStreak,
+            avatarUrl: base.avatarUrl,
+            skillScores: base.skillScores,
+          );
+        }
+
+        // activities dan real statistika hisoblash
+        final totalAttempts = acts.length;
+        final avgScore = acts.fold<double>(
+                0,
+                (sum, a) =>
+                    sum + ((a['scorePercent'] as num?)?.toDouble() ?? 0)) /
+            totalAttempts;
+
+        final skillMap = <String, List<double>>{
+          'quiz': [],
+          'listening': [],
+          'speaking': [],
+          'flashcard': [],
+        };
+        for (final a in acts) {
+          final skill = a['skillType'] as String? ?? '';
+          final score = (a['scorePercent'] as num?)?.toDouble() ?? 0;
+          if (skillMap.containsKey(skill)) skillMap[skill]!.add(score);
+        }
+
+        double skillAvg(List<double> list) =>
+            list.isEmpty ? 0 : list.reduce((a, b) => a + b) / list.length;
+
+        return StudentSummaryModel(
+          userId: base.userId,
+          fullName: base.fullName,
+          level: base.level,
+          joinedAt: base.joinedAt,
+          lastActiveAt: base.lastActiveAt,
+          averageScore: double.parse(avgScore.toStringAsFixed(1)),
+          totalAttempts: totalAttempts,
+          currentStreak: progressMap[doc.id] ?? base.currentStreak,
+          avatarUrl: base.avatarUrl,
+          skillScores: {
+            'quiz':
+                double.parse(skillAvg(skillMap['quiz']!).toStringAsFixed(1)),
+            'listening': double.parse(
+                skillAvg(skillMap['listening']!).toStringAsFixed(1)),
+            'speaking': double.parse(
+                skillAvg(skillMap['speaking']!).toStringAsFixed(1)),
+            'flashcard': double.parse(
+                skillAvg(skillMap['flashcard']!).toStringAsFixed(1)),
+          },
+        );
+      }).toList();
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        message: e.message ?? 'A\'zolar yuklanmadi',
+        code: e.code,
+      );
+    }
+  }
+
+  @override
+  Future<List<ClassModel>> getStudentClasses(
+      {required String studentId}) async {
+    try {
+      final allClassesSnap =
+          await _classes.where('isActive', isEqualTo: true).get();
+
+      final studentClasses = <ClassModel>[];
+
+      for (final classDoc in allClassesSnap.docs) {
+        final memberDoc = await _classes
+            .doc(classDoc.id)
+            .collection('members')
+            .doc(studentId)
+            .get();
+
+        if (memberDoc.exists) {
+          studentClasses.add(ClassModel.fromFirestore(classDoc));
         }
       }
 
-      return classes;
+      return studentClasses;
     } on FirebaseException catch (e) {
       throw ServerException(
         message: e.message ?? 'Sinflar yuklanmadi',
@@ -383,7 +455,7 @@ class ClassRemoteDataSourceImpl implements ClassRemoteDataSource {
   }
 }
 
-/// Provider
+// ✅ Xato 2 tuzatma: classRemoteDataSourceProvider qo'shildi
 final classRemoteDataSourceProvider = Provider<ClassRemoteDataSource>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return ClassRemoteDataSourceImpl(firestore: firestore);

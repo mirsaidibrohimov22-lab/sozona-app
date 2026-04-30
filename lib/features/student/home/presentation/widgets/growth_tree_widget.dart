@@ -186,7 +186,7 @@ class _GrowthTreeWidgetState extends State<GrowthTreeWidget>
         'Urug\' ekildi',
         "Niholcha o'syapti",
         "O'smir daraxt",
-        "Yosh daraxt",
+        'Yosh daraxt',
         "Balog'atga yetdi",
         "Ulug' daraxt! 🏆",
       ][s.clamp(0, 5)];

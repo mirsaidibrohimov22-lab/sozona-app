@@ -53,6 +53,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _particles = List.generate(30, (_) => _Particle.random(_rng));
     _setupControllers();
     _runSequence();
+    _checkAuth(); // ✅ FIX: animatsiya bilan parallel — ko'k ekran muammosi hal qilindi
   }
 
   void _setupControllers() {
@@ -122,12 +123,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
     _dotsCtrl.forward();
-
-    _checkAuth();
+    // _checkAuth() endi initState da parallel ishga tushadi
   }
 
   Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // ✅ FIX: animatsiya tugashini kutamiz (~5s)
+    await Future.delayed(const Duration(milliseconds: 5000));
     if (!mounted || _hasNavigated) return;
     try {
       await ref.read(authNotifierProvider.notifier).checkAuthStatus();
@@ -175,6 +176,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      // ✅ FIX: Redmi/MIUI da gradient shader render muammosi
+      // Scaffold backgroundColor qora bo'lsa — gradient yuklanguncha ko'k emas qora ko'rinadi
+      backgroundColor: const Color(0xFF060414),
       body: AnimatedBuilder(
         animation: Listenable.merge([
           _parrotCtrl,
@@ -189,19 +193,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         builder: (context, _) => Stack(
           children: [
             // ── FON ───────────────────────────────────────────────────
-            CustomPaint(
-              size: size,
-              painter: _BackgroundPainter(
-                time: _particleCtrl.value,
+            // ✅ FIX: RepaintBoundary — Redmi/MIUI GPU rendering muammosini hal qiladi
+            RepaintBoundary(
+              child: CustomPaint(
+                size: size,
+                painter: _BackgroundPainter(
+                  time: _particleCtrl.value,
+                ),
               ),
             ),
 
             // ── ZARRACHALAR ───────────────────────────────────────────
-            CustomPaint(
-              size: size,
-              painter: _ParticlePainter(
-                particles: _particles,
-                progress: _particleCtrl.value,
+            RepaintBoundary(
+              child: CustomPaint(
+                size: size,
+                painter: _ParticlePainter(
+                  particles: _particles,
+                  progress: _particleCtrl.value,
+                ),
               ),
             ),
 
@@ -211,45 +220,58 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── TO'TIQUSH ──────────────────────────────────────
-                  Opacity(
-                    opacity: _parrotOpacity.value,
-                    child: Transform.translate(
-                      offset: Offset(0, _parrotY.value),
-                      child: Transform.scale(
-                        scale: _parrotScale.value * _breathe.value,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Glow halqa
-                            Container(
-                              width: 200,
-                              height: 200,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    const Color(0xFF6C63FF)
-                                        .withOpacity(0.35 * _glowPulse.value),
-                                    const Color(0xFF00D4AA)
-                                        .withOpacity(0.15 * _glowPulse.value),
-                                    Colors.transparent,
-                                  ],
-                                  stops: const [0.0, 0.45, 1.0],
+                  // ✅ FIX (Redmi/MIUI): Opacity widget + CustomPaint gradient
+                  // GPU "saveLayer" muammosini hal qilish:
+                  // Eski: Opacity(child: Stack[Container(gradient), CustomPaint])
+                  //       → MIUI GPU saveLayer + gradient = logo ko'rinmaydi
+                  // Yangi: RepaintBoundary(child: Opacity(...))
+                  //        → RepaintBoundary o'z layerini yaratadi, saveLayer ichida
+                  //          gradient muammo yo'qoladi. Barcha Android telifonlarda ishlaydi.
+                  RepaintBoundary(
+                    child: Opacity(
+                      opacity: _parrotOpacity.value.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: Offset(0, _parrotY.value),
+                        child: Transform.scale(
+                          scale: _parrotScale.value * _breathe.value,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Glow halqa — RepaintBoundary ichida xavfsiz
+                              RepaintBoundary(
+                                child: Container(
+                                  width: 200,
+                                  height: 200,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(
+                                      colors: [
+                                        const Color(0xFF6C63FF).withOpacity(
+                                            0.35 * _glowPulse.value),
+                                        const Color(0xFF00D4AA).withOpacity(
+                                            0.15 * _glowPulse.value),
+                                        Colors.transparent,
+                                      ],
+                                      stops: const [0.0, 0.45, 1.0],
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                            // To'tiqush
-                            SizedBox(
-                              width: 190,
-                              height: 200,
-                              child: CustomPaint(
-                                painter: _ParrotPainter(
-                                  wingAngle: _wingFlap.value,
-                                  breathe: _breatheCtrl.value,
+                              // To'tiqush — o'z RepaintBoundary da
+                              RepaintBoundary(
+                                child: SizedBox(
+                                  width: 190,
+                                  height: 200,
+                                  child: CustomPaint(
+                                    painter: _ParrotPainter(
+                                      wingAngle: _wingFlap.value,
+                                      breathe: _breatheCtrl.value,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -262,24 +284,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     opacity: _titleOpacity,
                     child: SlideTransition(
                       position: _titleSlide,
-                      child: ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white,
-                            Color(0xFFCAC4FF),
-                            Color(0xFF00D4AA),
-                          ],
-                          stops: [0.0, 0.5, 1.0],
-                        ).createShader(bounds),
-                        child: const Text(
-                          "So'zona",
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 5,
+                      // ✅ FIX (Redmi): ShaderMask + FadeTransition konflikti
+                      // RepaintBoundary — ShaderMask ni alohida layerda render qiladi
+                      child: RepaintBoundary(
+                        child: ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white,
+                              Color(0xFFCAC4FF),
+                              Color(0xFF00D4AA),
+                            ],
+                            stops: [0.0, 0.5, 1.0],
+                          ).createShader(bounds),
+                          child: const Text(
+                            "So'zona",
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 5,
+                            ),
                           ),
                         ),
                       ),

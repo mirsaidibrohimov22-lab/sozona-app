@@ -41,6 +41,7 @@ class _ContentGeneratorScreenState
   // Text controllers
   final _topicController = TextEditingController();
   final _countController = TextEditingController(text: '10');
+  final _grammarController = TextEditingController();
 
   // Advanced options
   String _quizDifficulty = 'medium';
@@ -51,6 +52,7 @@ class _ContentGeneratorScreenState
   void dispose() {
     _topicController.dispose();
     _countController.dispose();
+    _grammarController.dispose();
     super.dispose();
   }
 
@@ -201,6 +203,57 @@ class _ContentGeneratorScreenState
 
             const SizedBox(height: 32),
 
+            // ✅ Generating progress info
+            if (state.isGenerating) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEEDFF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFF6C63FF),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'AI yaratmoqda...',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6C63FF),
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Bu 10-30 soniya vaqt olishi mumkin',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: const Color(0xFF6C63FF)
+                                  .withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
             // Yaratish tugmasi
             AppButton(
               label:
@@ -251,6 +304,7 @@ class _ContentGeneratorScreenState
                 topic: topic,
                 questionCount: count,
                 difficulty: _quizDifficulty,
+                grammar: _grammarController.text.trim(),
               ),
             );
         break;

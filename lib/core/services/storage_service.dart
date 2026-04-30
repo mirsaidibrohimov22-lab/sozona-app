@@ -104,6 +104,12 @@ class StorageService {
     LoggerService.info('Secure storage cleared');
   }
 
+  /// Secure storage dagi barcha kalitlarni qaytaradi.
+  Future<List<String>> getAllSecureKeys() async {
+    final all = await _secureStorage.readAll();
+    return all.keys.toList();
+  }
+
   // ═══════════════════════════════════
   // 📋 CONVENIENCE METHODS
   // ═══════════════════════════════════

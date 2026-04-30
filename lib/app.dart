@@ -2,7 +2,6 @@
 // So'zona — Asosiy Ilova Widgeti
 // ✅ SAFE BOOT: Firebase init bo'lmasa router yuklanmaydi → crash yo'q
 
-import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -24,8 +23,7 @@ class SozonaApp extends ConsumerWidget {
     if (!firebaseReady) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        locale: DevicePreview.locale(context),
-        builder: DevicePreview.appBuilder,
+        locale: null,
         theme: AppTheme.lightTheme,
         home: Scaffold(
           body: Center(
@@ -72,8 +70,7 @@ class SozonaApp extends ConsumerWidget {
       debugPrint('❌ Router yaratishda xato: $e');
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        locale: DevicePreview.locale(context),
-        builder: DevicePreview.appBuilder,
+        locale: null,
         home: Scaffold(
           body: Center(
             child: Padding(
@@ -116,7 +113,7 @@ class SozonaApp extends ConsumerWidget {
             theme: AppTheme.lightTheme,
             themeMode: ThemeMode.light,
             routerConfig: router,
-            locale: DevicePreview.locale(context),
+            locale: null,
             supportedLocales: AppL10n.supportedLocales,
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
@@ -165,7 +162,7 @@ class SozonaApp extends ConsumerWidget {
               };
 
               final appChild = child ?? const SizedBox.shrink();
-              return DevicePreview.appBuilder(context, appChild);
+              return appChild;
             },
           ), // MaterialApp.router
         ); // GestureDetector

@@ -28,7 +28,7 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authNotifierProvider).user;
     final lang = user?.learningLanguage.name ?? 'en';
-    final level = user?.level.name ?? 'A1';
+    final level = user?.level.name.toUpperCase() ?? 'A1';
 
     final exercisesAsync = ref.watch(
       speakingListProvider(const GetSpeakingParams()),
@@ -117,7 +117,7 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
                 _showGenerateDialog(
                   context,
                   user?.learningLanguage.name ?? 'en',
-                  user?.level.name ?? 'A1',
+                  user?.level.name.toUpperCase() ?? 'A1',
                 );
               },
               icon: const Icon(Icons.auto_awesome),
@@ -138,7 +138,7 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
             _showGenerateDialog(
               context,
               user?.learningLanguage.name ?? 'en',
-              user?.level.name ?? 'A1',
+              user?.level.name.toUpperCase() ?? 'A1',
             );
           },
         ),
@@ -175,10 +175,26 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
   void _showGenerateDialog(BuildContext context, String lang, String level) {
     String selectedTopic = '';
     String selectedTaskType = 'describe';
+    final topicController = TextEditingController();
 
-    // Mavzu takliflari
-    final topicSuggestions = lang == 'de'
-        ? ['Alltag', 'Familie', 'Arbeit', 'Hobbys', 'Reisen', 'Essen']
+    // ✅ FIX: 'de' emas, enum nomi 'german'
+    final topicSuggestions = lang == 'german'
+        ? [
+            'Alltag',
+            'Familie',
+            'Arbeit',
+            'Hobbys',
+            'Reisen',
+            'Essen',
+            'Sport',
+            'Gesundheit',
+            'Schule',
+            'Technologie',
+            'Natur',
+            'Kultur',
+            'Wohnen',
+            'Einkaufen',
+          ]
         : [
             'Daily Routine',
             'My Family',
@@ -188,6 +204,16 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
             'Food & Culture',
             'City Life',
             'My Goals',
+            'Health & Fitness',
+            'Technology',
+            'Education',
+            'Environment',
+            'Music & Movies',
+            'Sports',
+            'Social Media',
+            'Future Plans',
+            'Memorable Experience',
+            'My Hometown',
           ];
 
     final taskTypes = {
@@ -261,8 +287,9 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
                         TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 8),
                 TextField(
+                  controller: topicController,
                   decoration: InputDecoration(
-                    hintText: 'Mavzu kiriting yoki quyidan tanlang...',
+                    hintText: 'O\'zingiz yozing: Sports, Cooking, My hobby...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -279,7 +306,10 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
                   children: topicSuggestions.map((t) {
                     final isSelected = selectedTopic == t;
                     return GestureDetector(
-                      onTap: () => setModalState(() => selectedTopic = t),
+                      onTap: () => setModalState(() {
+                        selectedTopic = t;
+                        topicController.text = t;
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -387,7 +417,7 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
                               style:
                                   TextStyle(fontSize: 12, color: Colors.blue)),
                           Text(
-                            '$level — ${lang == 'de' ? 'Nemis tili' : 'Ingliz tili'}',
+                            '$level — ${lang == 'german' ? 'Nemis tili' : 'Ingliz tili'}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.blue),
@@ -434,7 +464,9 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      topicController.dispose();
+    });
   }
 
   IconData _taskTypeIcon(String type) {
@@ -464,11 +496,16 @@ class _SpeakingListScreenState extends ConsumerState<SpeakingListScreen> {
     if (!mounted) return;
     setState(() => _isGenerating = true);
 
+    // ✅ FIX: 'german'/'english' (enum nomi) → 'de'/'en' (API kodi)
+    // Sabab: user.learningLanguage.name 'german' qaytaradi,
+    // lekin Cloud Function faqat 'de' ni taniydi
+    final langCode = lang == 'german' ? 'de' : 'en';
+
     try {
       final repo = ref.read(speakingRepositoryImplProvider);
       final result = await repo.generateDialog(
         topic: topic,
-        language: lang,
+        language: langCode,
         level: level,
       );
 

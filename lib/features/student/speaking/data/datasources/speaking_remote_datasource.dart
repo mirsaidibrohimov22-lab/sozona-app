@@ -7,7 +7,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_first_app/core/constants/api_endpoints.dart';
-import 'package:my_first_app/core/error/exceptions.dart';
 import 'package:my_first_app/features/student/speaking/data/models/speaking_model.dart';
 
 abstract class SpeakingRemoteDataSource {

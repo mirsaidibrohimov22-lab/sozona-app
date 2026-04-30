@@ -1,6 +1,6 @@
-// lib/features/flashcard/presentation/screens/cards_list_screen.dart
+// lib/features/student/flashcards/presentation/screens/cards_list_screen.dart
 // So'zona — Papka ichidagi kartochkalar ro'yxati
-// Kartochkalar ko'rish, qo'shish, takrorlash boshlash
+// ✅ FIX: loadCards da userId to'g'ri uzatiladi
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,8 +32,14 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(cardsProvider.notifier).loadCards(widget.folderId);
+      _loadCards();
     });
+  }
+
+  /// ✅ FIX: userId auth provider dan olinib loadCards ga uzatiladi
+  void _loadCards() {
+    final userId = ref.read(authNotifierProvider).user?.id ?? '';
+    ref.read(cardsProvider.notifier).loadCards(widget.folderId, userId);
   }
 
   @override
@@ -61,9 +67,7 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
           : cardsState.error != null
               ? AppErrorWidget(
                   message: cardsState.error!,
-                  onRetry: () => ref
-                      .read(cardsProvider.notifier)
-                      .loadCards(widget.folderId),
+                  onRetry: _loadCards,
                 )
               : cardsState.cards.isEmpty
                   ? const AppEmptyWidget(
@@ -75,26 +79,27 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Takrorlash boshlash
-          if (dueCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.spacingSm),
-              child: FloatingActionButton.extended(
-                heroTag: 'review',
-                onPressed: () => context.push(
-                  '/student/flashcards/review/${widget.folderId}',
-                ),
-                
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.play_arrow),
-                label: Text('Takrorlash ($dueCount)'),
+          // Takrorlash boshlash — barcha kartochkalar bilan
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.spacingSm),
+            child: FloatingActionButton.extended(
+              heroTag: 'review',
+              onPressed: () => context.push(
+                '/student/flashcards/review/${widget.folderId}',
+              ),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.play_arrow),
+              label: Text(
+                dueCount > 0
+                    ? 'Takrorlash ($dueCount)'
+                    : 'Takrorlash (${cardsState.cards.length})',
               ),
             ),
+          ),
           // Kartochka qo'shish
           FloatingActionButton(
             heroTag: 'add',
             onPressed: _showAddCardDialog,
-            
             foregroundColor: Colors.white,
             child: const Icon(Icons.add),
           ),
@@ -105,8 +110,7 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
 
   Widget _buildContent(CardsState state) {
     return RefreshIndicator(
-      onRefresh: () async =>
-          ref.read(cardsProvider.notifier).loadCards(widget.folderId),
+      onRefresh: () async => _loadCards(),
       child: ListView.builder(
         padding: const EdgeInsets.all(AppSizes.spacingLg),
         itemCount: state.cards.length,
@@ -130,7 +134,6 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
     );
   }
 
-  /// Kartochka qo'shish dialogi
   Future<void> _showAddCardDialog() async {
     final frontController = TextEditingController();
     final backController = TextEditingController();
@@ -195,7 +198,6 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              
               foregroundColor: Colors.white,
             ),
             child: const Text('Qo\'shish'),
@@ -224,7 +226,6 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
     exampleController.dispose();
   }
 
-  /// Kartochka tafsilotlari
   void _showCardDetail(FlashcardEntity card) {
     showModalBottomSheet(
       context: context,
@@ -295,7 +296,6 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              
               foregroundColor: Colors.white,
             ),
             child: const Text('O\'chirish'),
@@ -307,7 +307,6 @@ class _CardsListScreenState extends ConsumerState<CardsListScreen> {
   }
 }
 
-/// Kichik statistika chiplari
 class _StatChip extends StatelessWidget {
   final String label;
   final String value;

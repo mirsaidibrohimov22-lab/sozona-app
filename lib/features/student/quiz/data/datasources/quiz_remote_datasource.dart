@@ -1,3 +1,4 @@
+import 'dart:async';
 // lib/features/student/quiz/data/datasources/quiz_remote_datasource.dart
 // So'zona — Quiz Firebase datasource
 // ✅ FIX: getQuizzes endi foydalanuvchi o'z quizlarini ham ko'radi
@@ -383,12 +384,26 @@ class QuizRemoteDataSourceImpl implements QuizRemoteDataSource {
       await batch.commit();
 
       // 4. ✅ FIX: Barcha sinflarda member progress yangilash
-      // MemberProgressService o'zi Firestore dan o'quvchi sinflarini topadi
       await MemberProgressService.instance.recordAttempt(
         userId: userId,
         scorePercent: pct,
         skillType: 'quiz',
       );
+
+      // 5. ✅ YANGI: AI Murabbiy — xato yozish (ball past bo'lsa)
+      if (pct < 80 && quizId.isNotEmpty) {
+        final wrongAnswers = answers.where((a) => !a.isCorrect).toList();
+        for (final wa in wrongAnswers.take(3)) {
+          unawaited(_functions.httpsCallable('recordMistake').call({
+            'contentId': quizId,
+            'contentType': 'quiz',
+            'userAnswer': wa.userAnswer,
+            'correctAnswer': wa.correctAnswer,
+            'scorePercent': pct,
+            'language': 'en',
+          }));
+        }
+      }
 
       return attempt;
     } catch (e) {

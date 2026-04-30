@@ -1,7 +1,6 @@
 // lib/features/student/home/presentation/providers/student_home_provider.dart
-// ✅ TUZATILDI: Streak, XP, Daraja Firestore'dan to'g'ri o'qiladi
-// ✅ TUZATILDI: StreakData va DailyPlan to'g'ri modellardan to'ldiriladi
-// ✅ TUZATILDI: AI Motivation integratsiya saqlanadi
+// ✅ FIX v2.0: Streak, XP, Daraja Firestore'dan to'g'ri o'qiladi
+// ✅ FIX v3.0: activities timestamp filtri DateTime → Timestamp (statistika tuzatildi)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -15,10 +14,10 @@ import 'package:my_first_app/features/auth/presentation/providers/auth_provider.
 class DailyPlan {
   final int goalMinutes;
   final int completedMinutes;
-  final int flashcardsDone; // 0-100 foiz
-  final int quizzesDone; // 0-100 foiz
-  final int listeningDone; // 0-100 foiz
-  final int speakingDone; // 0-100 foiz
+  final int flashcardsDone;
+  final int quizzesDone;
+  final int listeningDone;
+  final int speakingDone;
 
   const DailyPlan({
     this.goalMinutes = 15,
@@ -129,7 +128,6 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
     state = state.copyWith(isLoading: true, user: user, clearError: true);
 
     try {
-      // ✅ Parallel yuklash
       final results = await Future.wait([
         _loadStreakData(user.id),
         _loadDailyPlanData(user),
@@ -198,19 +196,38 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
   Future<DailyPlan> _loadDailyPlanData(UserEntity user) async {
     try {
       final today = DateTime.now();
-      // Bugun UTC boshlangich vaqti
-      final todayStart = DateTime(today.year, today.month, today.day);
+      final todayDate = DateTime(today.year, today.month, today.day);
 
-      // ✅ activities collectiondan bugungi mashqlarni o'qish
+      // ✅ FIX: Composite index talab qilmaydigan query
+      // Avval faqat userId bo'yicha so'rov — index kerak emas
+      // Keyin Dart da bugun sanasi bo'yicha filtrlaymiz
+      // userId bo'yicha so'rov — composite index kerak emas (orderBy yo'q)
       final snap = await _firestore
           .collection('activities')
           .where('userId', isEqualTo: user.id)
-          .where('timestamp', isGreaterThanOrEqualTo: todayStart)
+          .limit(100)
           .get();
 
-      final docs = snap.docs;
+      // Bugungi faoliyatlarni Dart da filtrlaymiz
+      // timestamp yoki createdAt fieldlarini tekshiramiz (ikkalasini ham qo'llab-quvvatlash)
+      final docs = snap.docs.where((doc) {
+        final d = doc.data();
+        DateTime? docDate;
 
-      // Har bir skill uchun oxirgi score (foiz)
+        final ts = d['timestamp'];
+        if (ts is Timestamp) {
+          docDate = ts.toDate();
+        } else {
+          final ca = d['createdAt'];
+          if (ca is Timestamp) docDate = ca.toDate();
+        }
+
+        if (docDate == null) return false;
+        return docDate.year == todayDate.year &&
+            docDate.month == todayDate.month &&
+            docDate.day == todayDate.day;
+      }).toList();
+
       double flashScore = 0;
       double quizScore = 0;
       double listenScore = 0;
@@ -245,14 +262,12 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
         }
       }
 
-      // O'rtacha foiz (0-100)
       final flashAvg = flashCount > 0 ? (flashScore / flashCount).round() : 0;
       final quizAvg = quizCount > 0 ? (quizScore / quizCount).round() : 0;
       final listenAvg =
           listenCount > 0 ? (listenScore / listenCount).round() : 0;
       final speakAvg = speakCount > 0 ? (speakScore / speakCount).round() : 0;
 
-      // completedMinutes = jami mashq soni * 5 daqiqa (taxminiy)
       final totalSessions = flashCount + quizCount + listenCount + speakCount;
       final completedMinutes = totalSessions * 5;
 
@@ -272,18 +287,29 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
 
   Future<int> _loadXp(String userId) async {
     try {
-      // 1. users collectiondan qidirish (quiz va boshqa mashqlar shu yerga yozadi)
-      final userDoc = await _firestore.collection('users').doc(userId).get();
+      // ✅ FIX: Source.server — cache emas, har doim yangi XP olish
+      // Quiz/Listening/Speaking XP yozgandan keyin cache eski qiymat qaytarardi
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get(const GetOptions(source: Source.server));
       final userXp = _toInt(userDoc.data()?['totalXp']);
       if (userXp > 0) return userXp;
 
-      // 2. progress collectiondan fallback
-      final progressDoc =
-          await _firestore.collection('progress').doc(userId).get();
+      final progressDoc = await _firestore
+          .collection('progress')
+          .doc(userId)
+          .get(const GetOptions(source: Source.server));
       return _toInt(progressDoc.data()?['totalXp']);
     } catch (e) {
-      debugPrint('⚠️ XP yuklanmadi: $e');
-      return 0;
+      // Server dan o'qib bo'lmasa — cache dan urinib ko'ramiz
+      debugPrint('⚠️ XP server dan yuklanmadi, cache urinamiz: $e');
+      try {
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        return _toInt(userDoc.data()?['totalXp']);
+      } catch (_) {
+        return 0;
+      }
     }
   }
 
@@ -367,7 +393,6 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
     }
   }
 
-  /// ✅ Streak va XP ni mashqdan keyin yangilash
   Future<void> refreshAfterLesson() async {
     final user = state.user;
     if (user == null) return;
@@ -405,9 +430,12 @@ final studentHomeProvider =
   );
 });
 
+// ✅ FIX: Premium foydalanuvchilarda "AI Chat" o'rniga "AI Murabbiy" ko'rinadi.
+// hasPremiumProvider emas user.hasActivePremium ishlatiladi — extra provider dependency yo'q.
 final quickActionsProvider = Provider<List<QuickAction>>((ref) {
   final user = ref.watch(authNotifierProvider).user;
   final isGerman = user?.isLearningGerman ?? false;
+  final hasPremium = user?.hasActivePremium ?? false;
 
   return [
     const QuickAction(
@@ -430,11 +458,13 @@ final quickActionsProvider = Provider<List<QuickAction>>((ref) {
         subtitle: 'AI bilan gaplashish',
         icon: '🗣️',
         route: '/student/speaking'),
+    // ✅ Premium → AI Murabbiy | Tekin → AI Chat
+    // ✅ FIX: AI Murabbiy endi barcha uchun — /student/ai-tutor
     const QuickAction(
-        title: 'AI Chat',
-        subtitle: 'Savol berish',
-        icon: '🤖',
-        route: '/student/ai-chat'),
+        title: 'AI Murabbiy',
+        subtitle: 'Tavsiyalar va statistika',
+        icon: '🎓',
+        route: '/student/ai-tutor'),
     const QuickAction(
         title: 'Sinfim',
         subtitle: 'Sinfga qo\'shilish',

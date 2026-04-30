@@ -1,6 +1,7 @@
-// lib/features/flashcard/presentation/screens/review_screen.dart
+// lib/features/student/flashcards/presentation/screens/review_screen.dart
 // So'zona — Kartochka takrorlash ekrani
-// Flip animatsiya + SM-2 baholash
+// ✅ FIX: userId authdan olinib startFolderReview ga uzatiladi
+// ✅ FIX: Noto'g'ri kartochkalar qayta ko'rsatiladi (loop)
 
 import 'dart:math';
 
@@ -12,10 +13,12 @@ import 'package:my_first_app/core/constants/app_sizes.dart';
 import 'package:my_first_app/core/widgets/animated_counter.dart';
 import 'package:my_first_app/core/widgets/app_badge.dart';
 import 'package:my_first_app/core/widgets/app_loading_widget.dart';
+import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/student/flashcards/presentation/providers/flashcard_provider.dart';
 import 'package:my_first_app/features/student/flashcards/presentation/widgets/review_result_widget.dart';
+import 'package:my_first_app/features/premium/presentation/providers/premium_provider.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_coach_screen.dart';
 
-/// Kartochka takrorlash ekrani
 class ReviewScreen extends ConsumerStatefulWidget {
   final String folderId;
 
@@ -34,7 +37,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
   void initState() {
     super.initState();
 
-    // Flip animatsiya
     _flipController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
@@ -43,11 +45,12 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
     );
 
-    // Sessiyani boshlash
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ✅ FIX: userId auth provider dan olinadi
+      final userId = ref.read(authNotifierProvider).user?.id ?? '';
       ref
           .read(reviewSessionProvider.notifier)
-          .startFolderReview(widget.folderId);
+          .startFolderReview(widget.folderId, userId);
     });
   }
 
@@ -61,9 +64,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
   Widget build(BuildContext context) {
     final session = ref.watch(reviewSessionProvider);
 
+    // AppBar title: nechta to'g'ri / jami
+    final titleText = session.totalInitialCards > 0
+        ? '${session.correctCount}/${session.totalInitialCards}'
+        : '0/0';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('${session.totalReviewed}/${session.cards.length}'),
+        title: Text(titleText),
         centerTitle: true,
         leading: IconButton(
           onPressed: () {
@@ -88,18 +96,75 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
               ? ReviewResultWidget(
                   correctCount: session.correctCount,
                   incorrectCount: session.incorrectCount,
-                  totalCards: session.cards.length,
+                  totalCards: session.totalInitialCards,
                   onClose: () {
+                    final score = session.totalInitialCards > 0
+                        ? (session.correctCount /
+                            session.totalInitialCards *
+                            100)
+                        : 0.0;
                     ref.read(reviewSessionProvider.notifier).reset();
-                    Navigator.pop(context);
+                    if (ref.read(hasPremiumProvider)) {
+                      Navigator.of(context)
+                          .push(
+                        MaterialPageRoute(
+                          builder: (_) => PremiumCoachScreen(
+                            trigger: 'after_lesson',
+                            skillType: 'flashcard',
+                            lastScore: score.toDouble(),
+                            // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
+                            sessionData: {
+                              'totalQuestions': session.totalInitialCards,
+                              'correctCount': session.correctCount,
+                              'wrongCount': session.incorrectCount,
+                            },
+                          ),
+                        ),
+                      )
+                          .then((_) {
+                        if (context.mounted) Navigator.pop(context);
+                      });
+                    } else {
+                      Navigator.pop(context);
+                    }
                   },
                   onRetry: () {
+                    final userId =
+                        ref.read(authNotifierProvider).user?.id ?? '';
                     ref
                         .read(reviewSessionProvider.notifier)
-                        .startFolderReview(widget.folderId);
+                        .startFolderReview(widget.folderId, userId);
                   },
                 )
-              : _buildReviewCard(session),
+              : session.cards.isEmpty
+                  ? _buildNoCards()
+                  : _buildReviewCard(session),
+    );
+  }
+
+  /// Kartochkalar yo'q holati
+  Widget _buildNoCards() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.inbox_outlined,
+              size: 64, color: AppColors.textTertiary),
+          const SizedBox(height: AppSizes.spacingMd),
+          const Text(
+            'Bu papkada kartochkalar yo\'q',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacingLg),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Orqaga'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -107,16 +172,19 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     final card = session.currentCard;
     if (card == null) return const SizedBox.shrink();
 
+    // Qolgan noto'g'ri kartochkalar soni
+    final remainingCount = session.cards.length;
+
     return Column(
       children: [
-        // Qolgan kartochkalar badge
         Padding(
           padding: const EdgeInsets.all(AppSizes.spacingMd),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // ✅ Qolgan kartochkalar badge
               AppBadge(
-                label: '${session.remaining} ta qoldi',
+                label: '$remainingCount ta qoldi',
                 type: BadgeType.status,
               ),
               if (card.hasArtikel) ...[
@@ -164,7 +232,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
           ),
         ),
 
-        // Baholash tugmalari (faqat orqa tomoni ko'ringanda)
         if (session.isFlipped)
           _buildRatingButtons()
         else
@@ -182,7 +249,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     );
   }
 
-  /// Old tomon — so'z
   Widget _buildCardFront(dynamic card) {
     return Card(
       elevation: 4,
@@ -243,7 +309,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     );
   }
 
-  /// Orqa tomon — tarjima
   Widget _buildCardBack(dynamic card) {
     return Card(
       elevation: 4,
@@ -309,7 +374,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
     );
   }
 
-  /// Baholash tugmalari (SM-2: 0-5)
   Widget _buildRatingButtons() {
     return SafeArea(
       child: Padding(
@@ -350,12 +414,15 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen>
   }
 
   void _rate(int quality) {
-    _flipController.reverse();
-    ref.read(reviewSessionProvider.notifier).rateCard(quality);
+    // ✅ FIX: animatsiya tugashini kutib, keyin keyingi kartaga o'tamiz
+    _flipController.reverse().then((_) {
+      if (mounted) {
+        ref.read(reviewSessionProvider.notifier).rateCard(quality);
+      }
+    });
   }
 }
 
-/// Baholash tugmasi
 class _RatingButton extends StatelessWidget {
   final String label;
   final String emoji;

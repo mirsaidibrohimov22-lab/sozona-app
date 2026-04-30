@@ -13,13 +13,13 @@ class SozonaLoadingAnimation extends StatefulWidget {
   final double size;
 
   const SozonaLoadingAnimation({
-    Key? key,
+    super.key,
     this.message,
     this.style = LoadingStyle.wave,
     this.primaryColor,
     this.secondaryColor,
     this.size = 48,
-  }) : super(key: key);
+  });
 
   /// Ekranning ustiga overlay sifatida ko'rsatish
   static OverlayEntry overlay(
@@ -364,14 +364,14 @@ class _PulsePainter extends CustomPainter {
 
 /// Quiz uchun loading
 class QuizLoadingWidget extends StatelessWidget {
-  const QuizLoadingWidget({Key? key}) : super(key: key);
+  const QuizLoadingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: SozonaLoadingAnimation(
         style: LoadingStyle.wave,
-        message: "Savol tayyorlanmoqda...",
+        message: 'Savol tayyorlanmoqda...',
         primaryColor: Color(0xFF6C63FF),
         secondaryColor: Color(0xFFFF6584),
         size: 56,
@@ -382,14 +382,14 @@ class QuizLoadingWidget extends StatelessWidget {
 
 /// Listening uchun loading
 class ListeningLoadingWidget extends StatelessWidget {
-  const ListeningLoadingWidget({Key? key}) : super(key: key);
+  const ListeningLoadingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: SozonaLoadingAnimation(
         style: LoadingStyle.wave,
-        message: "Audio tayyorlanmoqda...",
+        message: 'Audio tayyorlanmoqda...',
         primaryColor: Color(0xFF00D4AA),
         secondaryColor: Color(0xFF6C63FF),
         size: 56,
@@ -400,14 +400,14 @@ class ListeningLoadingWidget extends StatelessWidget {
 
 /// Speaking uchun loading
 class SpeakingLoadingWidget extends StatelessWidget {
-  const SpeakingLoadingWidget({Key? key}) : super(key: key);
+  const SpeakingLoadingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: SozonaLoadingAnimation(
         style: LoadingStyle.orbit,
-        message: "AI tahlil qilmoqda...",
+        message: 'AI tahlil qilmoqda...',
         primaryColor: Color(0xFFFF9F43),
         secondaryColor: Color(0xFF6C63FF),
         size: 56,
@@ -419,7 +419,7 @@ class SpeakingLoadingWidget extends StatelessWidget {
 /// Flashcard / AI chat uchun loading
 class AiThinkingWidget extends StatelessWidget {
   final String? message;
-  const AiThinkingWidget({Key? key, this.message}) : super(key: key);
+  const AiThinkingWidget({super.key, this.message});
 
   @override
   Widget build(BuildContext context) {

@@ -17,6 +17,7 @@ class StudentSummaryModel extends StudentSummary {
     required super.totalAttempts,
     required super.currentStreak,
     super.avatarUrl,
+    super.skillScores,
   });
 
   /// Firestore members subcollection'dan yaratish
@@ -37,7 +38,21 @@ class StudentSummaryModel extends StudentSummary {
       totalAttempts: (map['totalAttempts'] as num?)?.toInt() ?? 0,
       currentStreak: (map['currentStreak'] as num?)?.toInt() ?? 0,
       avatarUrl: map['avatarUrl'] as String?,
+      skillScores: _parseSkillScores(map['skillScores']),
     );
+  }
+
+  static Map<String, double> _parseSkillScores(dynamic value) {
+    if (value == null) return {};
+    if (value is Map) {
+      return Map<String, double>.fromEntries(
+        value.entries.map((e) => MapEntry(
+              e.key.toString(),
+              (e.value as num?)?.toDouble() ?? 0.0,
+            )),
+      );
+    }
+    return {};
   }
 
   /// Firestore'ga saqlash uchun Map
@@ -52,6 +67,7 @@ class StudentSummaryModel extends StudentSummary {
       'totalAttempts': totalAttempts,
       'currentStreak': currentStreak,
       'avatarUrl': avatarUrl,
+      'skillScores': skillScores,
     };
   }
 

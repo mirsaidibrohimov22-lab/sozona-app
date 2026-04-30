@@ -142,6 +142,48 @@ export function validateQuizLevel(
                 });
             }
         }
+
+        // 4. True/False — dunyo bilimini emas, til bilimini tekshirishi kerak
+        if (q['type'] === 'true_false') {
+            const trivialPatterns = [
+                /cats?\s+can\s+(not\s+)?fly/i,
+                /milk\s+is\s+(white|liquid)/i,
+                /sun\s+is\s+a\s+star/i,
+                /birds?\s+can\s+(not\s+)?fly/i,
+                /dogs?\s+are\s+animals/i,
+                /water\s+is\s+wet/i,
+                /sky\s+is\s+blue/i,
+                /fire\s+is\s+hot/i,
+                /ice\s+cream\s+is\s+cold/i,
+            ];
+            const qText = String(q['question'] || '');
+            for (const pat of trivialPatterns) {
+                if (pat.test(qText)) {
+                    issues.push({
+                        type: 'wrong_grammar',
+                        message: `Q${qNum}: True/False savoli til bilimini emas, dunyo bilimini tekshiryapti`,
+                        severity: 'error',
+                    });
+                    break;
+                }
+            }
+        }
+
+        // 5. MCQ — A1/A2 da variantlar bir xil kategoriyadan bo'lishi kerak
+        if ((level === 'A1' || level === 'A2') && q['type'] === 'mcq') {
+            const options = Array.isArray(q['options']) ? q['options'].map(String) : [];
+            const actionVerbs = ['run', 'sleep', 'jump', 'walk', 'swim', 'fly', 'sit', 'stand'];
+            const foodWords = ['bread', 'milk', 'egg', 'eggs', 'soup', 'fish', 'meat', 'rice', 'apple', 'banana', 'tea', 'coffee', 'pizza', 'cake'];
+            const hasAction = options.some(o => actionVerbs.includes(o.toLowerCase().trim()));
+            const hasFood = options.some(o => foodWords.includes(o.toLowerCase().trim()));
+            if (hasAction && hasFood) {
+                issues.push({
+                    type: 'wrong_grammar',
+                    message: `Q${qNum}: MCQ variantlari aralash kategoriyadan — harakatlar va ovqatlar birgalikda`,
+                    severity: 'error',
+                });
+            }
+        }
     }
 
     const errorCount = issues.filter(i => i.severity === 'error').length;

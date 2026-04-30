@@ -37,6 +37,10 @@ class StudentSummary extends Equatable {
   /// Profil rasmi URL (ixtiyoriy)
   final String? avatarUrl;
 
+  /// ✅ YANGI: Har bir skill bo'yicha foiz (0-100)
+  /// Masalan: {quiz: 65.0, listening: 40.0, speaking: 80.0, flashcard: 55.0}
+  final Map<String, double> skillScores;
+
   const StudentSummary({
     required this.userId,
     required this.fullName,
@@ -47,6 +51,7 @@ class StudentSummary extends Equatable {
     required this.totalAttempts,
     required this.currentStreak,
     this.avatarUrl,
+    this.skillScores = const {},
   });
 
   /// Oxirgi 7 kunda faol bo'lganmi?
@@ -79,6 +84,7 @@ class StudentSummary extends Equatable {
         level,
         averageScore,
         lastActiveAt,
+        skillScores,
       ];
 
   @override

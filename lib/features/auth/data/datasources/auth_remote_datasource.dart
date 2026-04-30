@@ -33,7 +33,7 @@ abstract class AuthRemoteDataSource {
 
   Future<void> signOut();
 
-  Future<UserModel?> getCurrentUser();
+  Future<UserModel?> getCurrentUser({bool forceServer = false});
 
   Future<void> resetPassword({required String email});
 
@@ -101,10 +101,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     } on AuthException {
       rethrow;
+    } on ServerException {
+      // _getUserFromFirestore dan kelgan ServerException — xabarini saqlab rethrow
+      rethrow;
     } catch (e) {
       _logger.e('Kutilmagan xatolik: $e');
       throw ServerException(
-        message: 'Server xatoligi: ${e.toString()}',
+        message: "Kirish amalga oshmadi. Qayta urinib ko'ring.",
       );
     }
   }
@@ -149,10 +152,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return await completer.future;
     } on AuthException {
       rethrow;
+    } on ServerException {
+      rethrow;
     } catch (e) {
       _logger.e('Telefon kirish xatoligi: $e');
       throw ServerException(
-        message: 'Server xatoligi: ${e.toString()}',
+        message: "Telefon orqali kirish amalga oshmadi. Qayta urinib ko'ring.",
       );
     }
   }
@@ -211,10 +216,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     } on AuthException {
       rethrow;
+    } on ServerException {
+      rethrow;
     } catch (e) {
       _logger.e('OTP xatolik: $e');
       throw ServerException(
-        message: 'Server xatoligi: ${e.toString()}',
+        message: "Tasdiqlash amalga oshmadi. Qayta urinib ko'ring.",
       );
     }
   }
@@ -267,10 +274,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
     } on AuthException {
       rethrow;
+    } on ServerException {
+      rethrow;
     } catch (e) {
       _logger.e('SignUp xatolik: $e');
       throw ServerException(
-        message: 'Server xatoligi: ${e.toString()}',
+        message: "Ro'yxatdan o'tish amalga oshmadi. Qayta urinib ko'ring.",
       );
     }
   }
@@ -290,7 +299,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel?> getCurrentUser() async {
+  Future<UserModel?> getCurrentUser({bool forceServer = false}) async {
     try {
       final firebaseUser = _firebaseAuth.currentUser;
       if (firebaseUser == null) {
@@ -299,11 +308,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       _logger.d('Hozirgi foydalanuvchi: ${firebaseUser.uid}');
-      return _getUserFromFirestore(firebaseUser.uid);
+      return _getUserFromFirestore(firebaseUser.uid, forceServer: forceServer);
+    } on ServerException {
+      rethrow;
     } catch (e) {
       _logger.e('GetCurrentUser xatolik: $e');
       throw ServerException(
-        message: 'Foydalanuvchi ma’lumotlarini olishda xatolik',
+        message:
+            "Foydalanuvchi ma'lumotlarini olishda xatolik. Qayta urinib ko'ring.",
       );
     }
   }
@@ -320,10 +332,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         message: _mapFirebaseAuthError(e.code),
         code: e.code,
       );
+    } on ServerException {
+      rethrow;
     } catch (e) {
       _logger.e('ResetPassword xatolik: $e');
       throw ServerException(
-        message: 'Server xatoligi: ${e.toString()}',
+        message: "Parol tiklash amalga oshmadi. Qayta urinib ko'ring.",
       );
     }
   }
@@ -387,15 +401,76 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  Future<UserModel> _getUserFromFirestore(String uid) async {
-    final doc = await _usersRef.doc(uid).get();
-    if (!doc.exists) {
-      throw AuthException(
-        message: 'Foydalanuvchi ma’lumotlari topilmadi',
-        code: 'USER_NOT_FOUND',
+  // ✅ FIX: Cache-first strategiya
+  // 1. Avval local Firestore cache dan o'qiymiz (offline ham ishlaydi, timeout yo'q)
+  // 2. Cache da bo'lmasa, serverdan 20s timeout bilan olamiz (eski 8s juda kam edi)
+  // 3. Timeout bo'lsa, foydalanuvchiga tushunarli xabar ko'rsatiladi
+  // ✅ FIX: forceServer=true — premium/daraja o'zgarganda cache emas server dan o'qish
+  Future<UserModel> _getUserFromFirestore(String uid,
+      {bool forceServer = false}) async {
+    try {
+      DocumentSnapshot<Map<String, dynamic>> doc;
+
+      if (forceServer) {
+        // ✅ Premium yoki profil o'zgargandan keyin — serverdan majburiy o'qish
+        doc = await _usersRef
+            .doc(uid)
+            .get(const GetOptions(source: Source.server))
+            .timeout(
+              const Duration(seconds: 20),
+              onTimeout: () => throw TimeoutException(
+                "Internet sekin yoki Firebase bilan aloqa yo'q. "
+                "Iltimos, internetni tekshirib, qayta urinib ko'ring.",
+              ),
+            );
+        _logger.d('✅ Server dan olindi (forceServer): $uid');
+      } else {
+        try {
+          // Birinchi — cache dan tez o'qish
+          doc = await _usersRef
+              .doc(uid)
+              .get(const GetOptions(source: Source.cache));
+          _logger.d('✅ Cache dan olindi: $uid');
+        } catch (_) {
+          // Cache da yo'q — serverdan yuklaymiz
+          _logger.d("Cache yo'q, serverdan yuklanmoqda: $uid");
+          doc = await _usersRef
+              .doc(uid)
+              .get(const GetOptions(source: Source.server))
+              .timeout(
+                const Duration(seconds: 20),
+                onTimeout: () => throw TimeoutException(
+                  "Internet sekin yoki Firebase bilan aloqa yo'q. "
+                  "Iltimos, internetni tekshirib, qayta urinib ko'ring.",
+                ),
+              );
+        }
+      }
+
+      if (!doc.exists) {
+        throw AuthException(
+          message: "Foydalanuvchi ma'lumotlari topilmadi",
+          code: 'USER_NOT_FOUND',
+        );
+      }
+      return UserModel.fromFirestore(doc);
+    } on TimeoutException catch (e) {
+      _logger.e('Firestore timeout: $e');
+      throw ServerException(
+        message: e.message ??
+            'Internet sekin yoki Firebase bilan aloqa yo\'q. '
+                'Iltimos, internetni tekshirib, qayta urinib ko\'ring.',
+      );
+    } on AuthException {
+      rethrow;
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      _logger.e('Firestore xatolik: $e');
+      throw ServerException(
+        message: "Ma'lumot olishda xatolik. Qayta urinib ko'ring.",
       );
     }
-    return UserModel.fromFirestore(doc);
   }
 
   String _mapFirebaseAuthError(String code) {
@@ -452,7 +527,7 @@ class UnsupportedAuthRemoteDataSource implements AuthRemoteDataSource {
   Stream<UserModel?> get authStateChanges => Stream<UserModel?>.value(null);
 
   @override
-  Future<UserModel?> getCurrentUser() async => null;
+  Future<UserModel?> getCurrentUser({bool forceServer = false}) async => null;
 
   @override
   Future<bool> isEmailVerified() async => false;

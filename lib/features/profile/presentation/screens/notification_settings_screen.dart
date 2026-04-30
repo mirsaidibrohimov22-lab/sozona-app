@@ -91,7 +91,7 @@ class _NotifTile extends StatelessWidget {
         subtitle: Text(subtitle),
         value: value,
         // ✅ activeThumbColor → activeColor (Flutter 3.27)
-        activeColor: AppColors.primary,
+        activeThumbColor: AppColors.primary,
         onChanged: onChanged,
       );
 }

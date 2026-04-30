@@ -168,11 +168,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, UserEntity?>> getCurrentUser() async {
+  Future<Either<Failure, UserEntity?>> getCurrentUser(
+      {bool forceServer = false}) async {
     try {
       // Avval remote'dan urinish
       if (await _networkInfo.isConnected) {
-        final user = await _remoteDataSource.getCurrentUser();
+        final user =
+            await _remoteDataSource.getCurrentUser(forceServer: forceServer);
         if (user != null) {
           // Cache'ni yangilash
           await _localDataSource.cacheUser(user);

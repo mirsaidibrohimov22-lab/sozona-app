@@ -1,4 +1,4 @@
-// lib/features/flashcard/domain/repositories/flashcard_repository.dart
+// lib/features/student/flashcards/domain/repositories/flashcard_repository.dart
 // So'zona — Flashcard repository interfeysi
 // Domain qatlami — Data qatlamiga bog'liq emas
 
@@ -39,15 +39,19 @@ abstract class FlashcardRepository {
   });
 
   /// Papka o'chirish (soft delete)
+  /// ✅ FIX: userId qo'shildi — Firestore rules uchun zarur
   Future<Either<Failure, void>> deleteFolder({
     required String folderId,
+    required String userId,
   });
 
   // ─── KARTOCHKA (Flashcard) operatsiyalari ───
 
   /// Papkadagi kartochkalarni olish
+  /// ✅ FIX: userId qo'shildi — Firestore rules uchun zarur
   Future<Either<Failure, List<FlashcardEntity>>> getCards({
     required String folderId,
+    required String userId,
   });
 
   /// Takrorlashga tayyor kartochkalarni olish

@@ -199,10 +199,12 @@ class _TeacherDashboardScreenState
             padding: const EdgeInsets.symmetric(
               horizontal: AppSizes.spacingLg,
             ),
-            child: TeacherActivityChart(
-              teacherId: user?.id ?? '',
-              classIds: dashState.classes.map((c) => c.id).toList(),
-            ),
+            child: dashState.classes.isEmpty
+                ? const _EmptyActivityChart()
+                : TeacherActivityChart(
+                    teacherId: user?.id ?? '',
+                    classIds: dashState.classes.map((c) => c.id).toList(),
+                  ),
           ),
         ),
 
@@ -254,6 +256,46 @@ class _TeacherDashboardScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Sinf yo'q bo'lganda grafik placeholder ───
+class _EmptyActivityChart extends StatelessWidget {
+  const _EmptyActivityChart();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "O'quvchilar faolligi",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            const Icon(Icons.bar_chart_outlined, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            const Text(
+              "Sinf qo'shing va o'quvchilar faolligi\nbu yerda ko'rinadi",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }

@@ -37,10 +37,21 @@ service cloud.firestore {
     // ═══════════════════════════════════
     // USERS
     // ═══════════════════════════════════
+    // Premium va rol fieldlarini foydalanuvchi o'zi o'zgartira olmaydi
+    // Faqat Cloud Functions (admin SDK) orqali o'zgartiriladi
+    function isProtectedField() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'isPremium', 'premiumExpiresAt', 'premiumSource',
+        'premiumStartedAt', 'premiumProductId', 'role',
+        'badges', 'referralCode', 'referralValidCount',
+        'isUzbekUser'
+      ]);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isTeacher();
       allow create: if isOwner(userId) && request.resource.data.role in ['student', 'teacher'];
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) && !isProtectedField();
       allow delete: if false;
 
       match /weakItems/{itemId} { allow read, write: if isOwner(userId); }
@@ -71,7 +82,10 @@ service cloud.firestore {
         allow read: if isAuth() && (isClassTeacher(classId) || uid() == memberId);
         allow create: if isAuth() && uid() == memberId;
         allow delete: if isClassTeacher(classId) || uid() == memberId;
-        allow update: if false;
+        // ✅ FIX: MemberProgressService — faqat progress maydonlarini yangilaydi
+        allow update: if isAuth() && uid() == memberId
+          && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['averageScore', 'totalAttempts', 'lastActiveAt']);
       }
 
       // ✅ Sinf chat — autentifikatsiya qilingan foydalanuvchi o'qiy va yoza oladi
@@ -126,7 +140,19 @@ service cloud.firestore {
     // ═══════════════════════════════════
     match /progress/{userId} {
       allow read: if isOwner(userId) || isTeacher();
-      allow write: if isOwner(userId);
+
+      // XP, streak, badge kabi muhim maydonlarni foydalanuvchi o'zgartira olmaydi
+      // Faqat Cloud Functions (admin SDK) orqali o'zgartiriladi
+      function isProgressProtected() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'totalXp', 'currentStreak', 'longestStreak', 'badges',
+          'weeklyXp', 'monthlyXp', 'level', 'lastBoxOpenDate'
+        ]);
+      }
+
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && !isProgressProtected();
+      allow delete: if false;
 
       match /dailyPlans/{date} { allow read, write: if isOwner(userId); }
       match /daily/{date} { allow read, write: if isOwner(userId); }
@@ -244,6 +270,49 @@ service cloud.firestore {
     match /ai_costs/{logId} { allow read: if false; allow write: if false; }
     match /user_costs/{userId} { allow read: if isOwner(userId); allow write: if false; }
     match /rate_limits/{docId} { allow read: if false; allow write: if false; }
+
+    // ═══════════════════════════════════════════════════════════
+    // PROMO KODLAR — faqat Cloud Function orqali yoziladi
+    // ═══════════════════════════════════════════════════════════
+    match /promoCodes/{code} {
+      allow read: if false;
+      allow write: if false;
+
+      match /usedBy/{userId} {
+        allow read: if false;
+        allow write: if false;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // AI MURABBIY — YANGI KOLLEKSIYALAR
+    // ═══════════════════════════════════════════════════════════
+
+    match /mistakes/{mistakeId} {
+      // O'quvchi o'z xatolarini ko'ra oladi
+      // Cloud Function ham yoza oladi (admin SDK — rules bypass)
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && resource.data.userId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewed']);
+      allow delete: if false;
+    }
+
+    match /scheduled_reviews/{reviewId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && resource.data.userId == uid()
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['isCompleted', 'scheduledFor', 'intervalDays', 'lastScore', 'repetitionCount', 'reason']);
+      allow delete: if false;
+    }
+
+    match /analytics/{userId}/weekly/{weekId} {
+      // Faqat o'zi o'qiy oladi, faqat Cloud Function yozadi
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
 
   }
 }

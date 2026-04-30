@@ -1,6 +1,15 @@
 // lib/features/student/speaking/data/models/speaking_model.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:my_first_app/features/student/speaking/domain/entities/speaking_exercise.dart';
+
+/// createdAt maydonini xavfsiz o'qish — Timestamp, int, null hammasini qabul qiladi
+DateTime _parseDate(dynamic value) {
+  if (value == null) return DateTime.now();
+  if (value is Timestamp) return value.toDate();
+  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+  return DateTime.now();
+}
 
 class SpeakingModel extends SpeakingExercise {
   const SpeakingModel({
@@ -28,9 +37,7 @@ class SpeakingModel extends SpeakingExercise {
           .map((v) => VocabularyItemModel.fromJson(v as Map<String, dynamic>))
           .toList(),
       culturalNotes: json['culturalNotes'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int)
-          : DateTime.now(),
+      createdAt: _parseDate(json['createdAt']),
     );
   }
 

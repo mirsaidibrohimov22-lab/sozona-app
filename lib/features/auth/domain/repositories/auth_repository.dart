@@ -49,7 +49,8 @@ abstract class AuthRepository {
 
   /// Hozirgi foydalanuvchini olish
   /// Agar kirgan bo'lsa [UserEntity], aks holda null
-  Future<Either<Failure, UserEntity?>> getCurrentUser();
+  Future<Either<Failure, UserEntity?>> getCurrentUser(
+      {bool forceServer = false});
 
   /// Parolni tiklash uchun email yuborish
   /// [email] — foydalanuvchi emaili

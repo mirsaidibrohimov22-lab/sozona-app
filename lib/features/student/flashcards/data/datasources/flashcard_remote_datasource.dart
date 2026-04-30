@@ -1,6 +1,9 @@
 // lib/features/student/flashcards/data/datasources/flashcard_remote_datasource.dart
 // So'zona — Flashcard remote ma'lumotlar manbai
-// Firestore bilan sinxronizatsiya
+// ✅ FIX: getCards va deleteFolder da userId filteri qo'shildi
+//    Sabab: Firestore security rules userId == request.auth.uid talab qiladi.
+//    Oldin faqat folderId bilan query qilinardi → PERMISSION_DENIED xatosi
+//    va kartochkalar yo'qolib ketardi.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
@@ -17,10 +20,12 @@ abstract class FlashcardRemoteDataSource {
   Future<FolderModel> getFolderById(String folderId);
   Future<FolderModel> createFolder(Map<String, dynamic> data);
   Future<FolderModel> updateFolder(String folderId, Map<String, dynamic> data);
-  Future<void> deleteFolder(String folderId);
+  // ✅ FIX: userId qo'shildi
+  Future<void> deleteFolder(String folderId, String userId);
 
   // ─── Kartochkalar ───
-  Future<List<FlashcardModel>> getCards(String folderId);
+  // ✅ FIX: userId qo'shildi
+  Future<List<FlashcardModel>> getCards(String folderId, String userId);
   Future<FlashcardModel> getCardById(String cardId);
   Future<FlashcardModel> createCard(Map<String, dynamic> data);
   Future<List<FlashcardModel>> createCards(List<Map<String, dynamic>> cards);
@@ -136,8 +141,9 @@ class FlashcardRemoteDataSourceImpl implements FlashcardRemoteDataSource {
     }
   }
 
+  /// ✅ FIX: userId qo'shildi — Firestore security rules talab qiladi
   @override
-  Future<void> deleteFolder(String folderId) async {
+  Future<void> deleteFolder(String folderId, String userId) async {
     try {
       // Soft delete — papka
       await _foldersRef.doc(folderId).update({
@@ -145,9 +151,13 @@ class FlashcardRemoteDataSourceImpl implements FlashcardRemoteDataSource {
         'updatedAt': DateTime.now().toIso8601String(),
       });
 
-      // Soft delete — papka ichidagi kartochkalar
-      final cards =
-          await _cardsRef.where('folderId', isEqualTo: folderId).get();
+      // ✅ FIX: userId filteri qo'shildi — oldin bu query PERMISSION_DENIED berardi
+      final cards = await _cardsRef
+          .where('folderId', isEqualTo: folderId)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      if (cards.docs.isEmpty) return;
 
       final batch = _firestore.batch();
       for (final doc in cards.docs) {
@@ -166,11 +176,14 @@ class FlashcardRemoteDataSourceImpl implements FlashcardRemoteDataSource {
 
   // ─── KARTOCHKALAR ───
 
+  /// ✅ FIX: userId qo'shildi — Firestore security rules talab qiladi
+  /// Oldin faqat folderId bilan query → PERMISSION_DENIED → kartochkalar yo'qolardi
   @override
-  Future<List<FlashcardModel>> getCards(String folderId) async {
+  Future<List<FlashcardModel>> getCards(String folderId, String userId) async {
     try {
       final snapshot = await _cardsRef
           .where('folderId', isEqualTo: folderId)
+          .where('userId', isEqualTo: userId)
           .where('isDeleted', isEqualTo: false)
           .orderBy('createdAt', descending: true)
           .get();
@@ -345,8 +358,7 @@ class FlashcardRemoteDataSourceImpl implements FlashcardRemoteDataSource {
     String query,
   ) async {
     try {
-      // Firestore'da LIKE qidiruv yo'q, shuning uchun
-      // barcha kartochkalarni olib, client-side filter qilamiz
+      // userId filterlangan query — Firestore rules uchun to'g'ri
       final snapshot = await _cardsRef
           .where('userId', isEqualTo: userId)
           .where('isDeleted', isEqualTo: false)

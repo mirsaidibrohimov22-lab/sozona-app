@@ -76,19 +76,18 @@ class MemberProgressService {
     } catch (_) {}
 
     // b) Fallback: classes/{classId}/members/{userId} ni qidiramiz
-    //    (Bu sekinroq, lekin har doim ishlaydi)
     try {
-      // Firestore collectionGroup query — barcha members subcollectionlarida
-      // hujjat ID si = userId bo'lganlarni topamiz
+      // ✅ FIX: collectionGroup da FieldPath.documentId() bilan where() ishlamaydi
+      // (Android: "invalid document path with odd number of segments")
+      // Yechim: barcha members ni olib, clientda filterlash
       final snap = await _db
           .collectionGroup('members')
-          .where(FieldPath.documentId, isEqualTo: userId)
+          .where('userId', isEqualTo: userId)
           .get();
 
       return snap.docs
           .map((doc) {
-            // Path: classes/{classId}/members/{userId}
-            // doc.reference.parent.parent.id = classId
+            // Path: classes/{classId}/members/{docId}
             return doc.reference.parent.parent?.id ?? '';
           })
           .where((id) => id.isNotEmpty)

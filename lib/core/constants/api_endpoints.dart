@@ -58,4 +58,19 @@ class ApiEndpoints {
   static const Duration longTimeout = Duration(seconds: 60);
   static const Duration assessmentTimeout = Duration(seconds: 90);
   static const Duration shortTimeout = Duration(seconds: 10);
+  // ═══════════════════════════════════
+  // ✅ YANGI: AI Murabbiy tizimi
+  // ═══════════════════════════════════
+
+  /// Xato yozish (quiz/listening/speaking tugaganda)
+  static const String recordMistake = 'recordMistake';
+
+  /// Tavsiya olish (contentId bilan)
+  static const String getRecommendations = 'getRecommendations';
+
+  /// Takrorlashni tugallash (SM-2 yangilanadi)
+  static const String completeReview = 'completeReview';
+
+  /// Haftalik hisobotni darhol yaratish (test/debug)
+  static const String triggerWeeklyReport = 'triggerWeeklyReport';
 }

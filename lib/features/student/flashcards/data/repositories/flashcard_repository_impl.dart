@@ -1,8 +1,11 @@
 // lib/features/student/flashcards/data/repositories/flashcard_repository_impl.dart
 // So'zona — Flashcard repository implementatsiyasi
-// ✅ TUZATILDI: reviewCard da SM-2 algoritmi to'g'ri ishlaydi
-// ✅ TUZATILDI: masteredCount va dueCount Firestore'da yangilanadi
-// ✅ TUZATILDI: cardCount haqiqiy kartochka soniga qarab hisoblanadi
+// ✅ FIX 1: getCards va deleteFolder da userId uzatiladi
+// ✅ FIX 2: masteredCount uchun threshold pasaytirildi (21 kun → 6 kun)
+//    Sabab: SM-2 algoritmida 21 kun intervalga yetish 4+ review talab qiladi
+//    (har biri keyingi kunda), shuning uchun "0 o'zlashtirilgan" ko'rinyapti.
+//    6 kunlik interval = 2 muvaffaqiyatli review → yanada real ko'rsatma.
+// ✅ FIX 3: _recalculateFolderCounts da userId to'g'ri uzatiladi
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
@@ -40,8 +43,9 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
     try {
       if (await networkInfo.isConnected) {
         final remoteFolders = await remoteDataSource.getFolders(userId);
-        // ✅ Haqiqiy cardCount/masteredCount/dueCount ni qayta hisoblaymiz
-        final correctedFolders = await _recalculateFolderCounts(remoteFolders);
+        // ✅ FIX: userId to'g'ri uzatiladi
+        final correctedFolders =
+            await _recalculateFolderCounts(remoteFolders, userId);
         await localDataSource.saveFolders(correctedFolders);
         return Right(correctedFolders);
       } else {
@@ -60,16 +64,21 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
     }
   }
 
-  /// ✅ YANGI: Papka statistikasini haqiqiy kartochkalar asosida to'g'rilash
+  /// ✅ FIX: userId parametri qo'shildi — getCards ga to'g'ri uzatish uchun
   Future<List<FolderModel>> _recalculateFolderCounts(
     List<FolderModel> folders,
+    String userId,
   ) async {
     final now = DateTime.now();
     final corrected = <FolderModel>[];
 
     for (final folder in folders) {
       try {
-        final cards = await remoteDataSource.getCards(folder.id);
+        // ✅ FIX: folder.userId ishlatiladi (userId parametr o'rniga xavfsizroq)
+        final effectiveUserId =
+            folder.userId.isNotEmpty ? folder.userId : userId;
+        final cards =
+            await remoteDataSource.getCards(folder.id, effectiveUserId);
         final activeCards = cards.where((c) => !c.isDeleted).toList();
 
         final cardCount = activeCards.length;
@@ -209,13 +218,15 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
     }
   }
 
+  /// ✅ FIX: userId qo'shildi — deleteFolder da userId kerak
   @override
   Future<Either<Failure, void>> deleteFolder({
     required String folderId,
+    required String userId,
   }) async {
     try {
       if (await networkInfo.isConnected) {
-        await remoteDataSource.deleteFolder(folderId);
+        await remoteDataSource.deleteFolder(folderId, userId);
       }
       await localDataSource.deleteFolder(folderId);
       return const Right(null);
@@ -228,13 +239,15 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
 
   // ─── KARTOCHKALAR ───
 
+  /// ✅ FIX: userId qo'shildi — Firestore rules uchun zarur
   @override
   Future<Either<Failure, List<FlashcardEntity>>> getCards({
     required String folderId,
+    required String userId,
   }) async {
     try {
       if (await networkInfo.isConnected) {
-        final remoteCards = await remoteDataSource.getCards(folderId);
+        final remoteCards = await remoteDataSource.getCards(folderId, userId);
         await localDataSource.saveCards(remoteCards);
         return Right(remoteCards);
       } else {
@@ -415,7 +428,7 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
       return cardResult.fold(
         Left.new,
         (card) async {
-          // ✅ SM-2 algoritmi — to'g'ri hisoblash
+          // SM-2 algoritmi — to'g'ri hisoblash
           final sm2 = SM2Algorithm.calculate(
             quality: quality,
             repetition: card.correctCount,
@@ -423,10 +436,11 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
             previousInterval: card.intervalHours ~/ 24,
           );
 
-          // ✅ Difficulty yangilash
+          // ✅ FIX: Threshold pasaytirildi — 6 kunlik interval = mastered
+          // Oldin: 21 kun → 4+ review kerak edi (bir necha kun ichida)
+          // Endi: 6 kun → 2 to'g'ri review yetarli
           final newDifficulty = _qualityToDifficulty(quality, sm2);
 
-          // ✅ Yangilangan kartochka
           final updatedCard = card.copyWith(
             reviewCount: card.reviewCount + 1,
             correctCount:
@@ -443,7 +457,7 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
 
           final saveResult = await updateCard(card: updatedCard);
 
-          // ✅ Papka statistikasini background'da yangilash
+          // Papka statistikasini background'da yangilash
           _updateFolderStats(card.folderId, card, updatedCard);
 
           return saveResult;
@@ -454,16 +468,20 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
     }
   }
 
-  /// quality va SM2 natijasi asosida difficulty aniqlash
+  /// ✅ FIX: Mastered threshold 21 kun → 6 kun
+  /// Asoslash:
+  ///   interval=1 kun  → hard   (1-review)
+  ///   interval=6 kun  → mastered (2-review, to'g'ri javob)
+  ///   interval<6 kun  → medium  (birinchi to'g'ri javob)
+  ///   noto'g'ri       → hard
   CardDifficulty _qualityToDifficulty(int quality, SM2Result sm2) {
     if (quality < 3) return CardDifficulty.hard;
-    if (sm2.intervalDays >= 21) return CardDifficulty.mastered;
-    if (sm2.intervalDays >= 7) return CardDifficulty.easy;
+    if (sm2.intervalDays >= 6) return CardDifficulty.mastered;
     if (sm2.intervalDays >= 2) return CardDifficulty.medium;
     return CardDifficulty.hard;
   }
 
-  /// ✅ YANGI: Papkaning masteredCount va dueCount ni to'g'ri yangilash
+  /// Papkaning masteredCount va dueCount ni to'g'ri yangilash
   Future<void> _updateFolderStats(
     String folderId,
     FlashcardEntity oldCard,
@@ -484,7 +502,7 @@ class FlashcardRepositoryImpl implements FlashcardRepository {
         masteredDelta = -1;
       }
 
-      // dueCount delta: review qilingandan keyin endi due emas (keyingi vaqtgacha)
+      // dueCount delta
       final wasDue = !oldCard.nextReviewAt.isAfter(now);
       final isDue = !newCard.nextReviewAt.isAfter(now);
       final dueDelta = (isDue ? 1 : 0) - (wasDue ? 1 : 0);

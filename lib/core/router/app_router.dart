@@ -1,14 +1,6 @@
 // lib/core/router/app_router.dart
-// So'zona — GoRouter konfiguratsiya
-// ✅ 1-KUN FIX: StudentShell 2 tab: Bosh sahifa + Profil
-// ✅ 1-KUN FIX: Barcha inline hardcoded pathlar RoutePaths ga ko'chirildi
-// ✅ 1-KUN FIX: flashcardReview, quizPlay, quizResult, privacy route qo'shildi
-// ✅ 1-KUN FIX: duplicate /student/settings route olib tashlandi
-// ✅ REFACTOR FIX: TeacherShell ga Profile tab qo'shildi (4-tab)
-//   ESKI: Teacher 3 tab — Dashboard, Sinflar, Kontent (Profile yo'q edi!)
-//   YANGI: Teacher 4 tab — Dashboard, Sinflar, Kontent, Profil
-//   SABAB: Teacher ham profilni ko'rishi, sozlamalarni o'zgartirishi,
-//          chiqishi kerak. /profile shared route ishlatiladi.
+// ✅ YANGI: voiceAssistant route + import qo'shildi
+// ✅ TUZATILDI: artikelPractice route qo'shildi
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,7 +32,10 @@ import 'package:my_first_app/features/student/listening/presentation/screens/lis
 import 'package:my_first_app/features/student/speaking/presentation/screens/speaking_list_screen.dart';
 import 'package:my_first_app/features/student/speaking/presentation/screens/speaking_screen.dart';
 import 'package:my_first_app/features/student/ai_chat/presentation/screens/ai_chat_screen.dart';
+import 'package:my_first_app/features/student/ai_tutor/presentation/screens/ai_tutor_screen.dart';
 import 'package:my_first_app/features/student/artikel/presentation/screens/artikel_list_screen.dart';
+import 'package:my_first_app/features/student/artikel/presentation/screens/artikel_practice_screen.dart';
+import 'package:my_first_app/features/student/artikel/domain/entities/artikel_word.dart';
 import 'package:my_first_app/features/student/progress/presentation/screens/progress_screen.dart';
 import 'package:my_first_app/features/student/join_class/presentation/screens/join_class_screen.dart';
 import 'package:my_first_app/features/student/classes/presentation/screens/student_class_list_screen.dart';
@@ -64,12 +59,21 @@ import 'package:my_first_app/features/profile/presentation/screens/profile_scree
 import 'package:my_first_app/features/profile/presentation/screens/settings_screen.dart';
 import 'package:my_first_app/features/profile/presentation/screens/notification_settings_screen.dart';
 import 'package:my_first_app/features/profile/presentation/screens/privacy_screen.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_screen.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_coach_screen.dart';
+import 'package:my_first_app/features/premium/presentation/screens/books_screen.dart';
+import 'package:my_first_app/features/premium/presentation/screens/book_reader_screen.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_expired_screen.dart';
+import 'package:my_first_app/features/referral/presentation/screens/referral_screen.dart';
+import 'package:my_first_app/features/leaderboard/presentation/screens/leaderboard_screen.dart';
+
+// ✅ YANGI: Ovozli yordamchi
+import 'package:my_first_app/features/voice_assistant/screens/voice_assistant_screen.dart';
 
 // ── Core ──
 import 'package:my_first_app/core/router/guards/auth_guard.dart';
 import 'package:my_first_app/core/router/route_names.dart';
 
-/// Auth holatini GoRouter ga uzatish uchun listenable
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(this._ref) {
     try {
@@ -93,11 +97,13 @@ class _AuthNotifier extends ChangeNotifier {
   }
 }
 
-/// GoRouter provider — faqat bir marta yaratiladi
+final navigatorKey = GlobalKey<NavigatorState>();
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = _AuthNotifier(ref);
 
   final router = GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: RoutePaths.splash,
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
@@ -113,9 +119,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
     },
     routes: [
-      // ═══════════════════════════════════════
-      // AUTH YO'LLARI
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
+      // AUTH
+      // ══════════════════════════════════════
       GoRoute(
         path: RoutePaths.splash,
         name: RouteNames.splash,
@@ -140,9 +146,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.phoneVerify,
         name: RouteNames.phoneVerify,
         builder: (context, state) {
-          final extra = Map<String, String>.from(
-            state.extra as Map? ?? {},
-          );
+          final extra = Map<String, String>.from(state.extra as Map? ?? {});
           return PhoneVerifyScreen(
             verificationId: extra['verificationId'] ?? '',
             phoneNumber: extra['phoneNumber'] ?? '',
@@ -160,12 +164,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SetupProfileScreen(),
       ),
 
-      // ═══════════════════════════════════════
-      // STUDENT SHELL — 2 ta tab: Bosh sahifa + Profil
-      // ✅ 1-KUN FIX: 6 tab → 2 tab
-      // Qolgan modullar (Flashcard, Quiz, Listening, Speaking,
-      // AI Chat, Progress) sub-route sifatida shell tashqarisida
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
+      // STUDENT SHELL — 2 ta tab
+      // ══════════════════════════════════════
       ShellRoute(
         builder: (context, state, child) => _StudentShell(child: child),
         routes: [
@@ -174,7 +175,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: RouteNames.studentHome,
             builder: (context, state) => const StudentHomeScreen(),
           ),
-          // ✅ Profil alohida tab sifatida
           GoRoute(
             path: RoutePaths.profile,
             name: RouteNames.profile,
@@ -183,10 +183,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ═══════════════════════════════════════
-      // STUDENT SUB-ROUTES (shell tashqarisida)
-      // Bu ekranlar full-screen ochiladi, bottom nav ko'rinmaydi
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
+      // STUDENT SUB-ROUTES
+      // ══════════════════════════════════════
 
       // ── Flashcards ──
       GoRoute(
@@ -238,12 +237,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.quiz,
         builder: (context, state) => const QuizListScreen(),
       ),
-      // ✅ FIX: quizPlay va quizResult AVVAL ro'yxatlanishi kerak!
-      // SABAB: GoRouter routelarni TARTIB bilan tekshiradi.
-      // Agar quizDetail (/student/quiz/:id) birinchi bo'lsa,
-      // /student/quiz/play ham :id='play' sifatida match qilinadi
-      // → Firestore'da 'play' id topilmaydi → "Quiz topilmadi" xatosi.
-      // QOIDA: Literal path (play, result) har doim wildcard (:id) dan OLDIN!
       GoRoute(
         path: RoutePaths.quizPlay,
         name: RouteNames.quizPlay,
@@ -293,11 +286,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ── AI Chat ──
+      // ── AI ──
+      GoRoute(
+        path: RoutePaths.aiTutor,
+        name: RouteNames.aiTutor,
+        builder: (context, state) => const AiTutorScreen(),
+      ),
       GoRoute(
         path: RoutePaths.aiChat,
         name: RouteNames.aiChat,
-        builder: (context, state) => const AiChatScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final initialMessage = extra?['initialMessage'] as String?;
+          return AiChatScreen(initialMessage: initialMessage);
+        },
       ),
 
       // ── Artikel ──
@@ -305,6 +307,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.artikel,
         name: RouteNames.artikel,
         builder: (context, state) => const ArtikelListScreen(),
+      ),
+      // ✅ TUZATILDI: artikelPractice route qo'shildi
+      GoRoute(
+        path: RoutePaths.artikelPractice,
+        name: RouteNames.artikelPractice,
+        builder: (context, state) {
+          final words = state.extra as List<ArtikelWord>? ?? [];
+          return ArtikelPracticeScreen(words: words);
+        },
       ),
 
       // ── Progress ──
@@ -328,14 +339,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const JoinClassScreen(),
       ),
 
-      // ── Student Sinflar ro'yxati ──
+      // ── Student Sinflar ──
       GoRoute(
         path: RoutePaths.studentClasses,
         name: RouteNames.studentClasses,
         builder: (context, state) => const StudentClassListScreen(),
       ),
-
-      // ── Student Sinf detail ──
       GoRoute(
         path: RoutePaths.studentClassDetail,
         name: RouteNames.studentClassDetail,
@@ -345,12 +354,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ═══════════════════════════════════════
-      // TEACHER SHELL — Bottom Navigation
-      // ✅ REFACTOR FIX: 3 tab → 4 tab (Profile qo'shildi)
-      // ESKI: Dashboard | Sinflar | Kontent
-      // YANGI: Dashboard | Sinflar | Kontent | Profil
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
+      // TEACHER SHELL — 4 ta tab
+      // ══════════════════════════════════════
       ShellRoute(
         builder: (context, state, child) => _TeacherShell(child: child),
         routes: [
@@ -369,7 +375,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: RouteNames.contentGenerator,
             builder: (context, state) => const ContentGeneratorScreen(),
           ),
-          // ✅ YANGI: Teacher profile tab — /profile shared route
           GoRoute(
             path: RoutePaths.teacherProfile,
             name: RouteNames.teacherProfile,
@@ -378,9 +383,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
       // TEACHER SUB-ROUTES
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
       GoRoute(
         path: RoutePaths.contentPreview,
         name: RouteNames.contentPreview,
@@ -438,11 +443,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ═══════════════════════════════════════
-      // SHARED YO'LLAR
-      // ─── /profile teacher shell ichida bo'lgani uchun
-      //     /settings, /notifications, /privacy shared sifatida qoladi
-      // ═══════════════════════════════════════
+      // ══════════════════════════════════════
+      // SHARED
+      // ══════════════════════════════════════
       GoRoute(
         path: RoutePaths.settings,
         name: RouteNames.settings,
@@ -458,6 +461,58 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: RouteNames.privacy,
         builder: (context, state) => const PrivacyScreen(),
       ),
+      GoRoute(
+        path: RoutePaths.premium,
+        name: RouteNames.premium,
+        builder: (context, state) => const PremiumScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.premiumCoach,
+        name: RouteNames.premiumCoach,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PremiumCoachScreen(
+            trigger: extra?['trigger'] as String? ?? 'daily_check',
+            skillType: extra?['skillType'] as String?,
+            lastScore: extra?['lastScore'] as double?,
+          );
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.premiumExpired,
+        name: RouteNames.premiumExpired,
+        builder: (context, state) => const PremiumExpiredScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.books,
+        name: RouteNames.books,
+        builder: (context, state) => const BooksScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.bookReader,
+        name: RouteNames.bookReader,
+        builder: (context, state) {
+          final level = state.pathParameters['level'] ?? 'a1';
+          return BookReaderScreen(level: level);
+        },
+      ),
+      GoRoute(
+        path: RoutePaths.referral,
+        name: RouteNames.referral,
+        builder: (context, state) => const ReferralScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.leaderboard,
+        name: RouteNames.leaderboard,
+        builder: (context, state) => const LeaderboardScreen(),
+      ),
+
+      // ✅ YANGI: Ovozli yordamchi
+      GoRoute(
+        path: RoutePaths.voiceAssistant,
+        name: RouteNames.voiceAssistant,
+        builder: (context, state) => const VoiceAssistantScreen(),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -466,18 +521,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'Sahifa topilmadi',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text('Sahifa topilmadi',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text(
-              state.matchedLocation,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey),
-            ),
+            Text(state.matchedLocation,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go(RoutePaths.splash),
@@ -497,12 +548,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return router;
 });
 
-// ═══════════════════════════════════════
-// STUDENT SHELL — 2 TA TAB
-// ✅ 1-KUN FIX: 6 tab → 2 tab (Bosh sahifa + Profil)
-// Flashcard, Quiz, Listening, Speaking, AI Chat, Natijalar
-// endi dashboard ichidagi quick actions orqali ochiladi
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
+// STUDENT SHELL — 2 ta tab
+// ══════════════════════════════════════
 class _StudentShell extends StatelessWidget {
   final Widget child;
   const _StudentShell({required this.child});
@@ -512,8 +560,8 @@ class _StudentShell extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(context, index),
+        selectedIndex: _selectedIndex(context),
+        onDestinationSelected: (i) => _onTap(context, i),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -530,14 +578,14 @@ class _StudentShell extends StatelessWidget {
     );
   }
 
-  int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith(RoutePaths.studentHome)) return 0;
-    if (location == RoutePaths.profile) return 1;
+  int _selectedIndex(BuildContext context) {
+    final loc = GoRouterState.of(context).matchedLocation;
+    if (loc.startsWith(RoutePaths.studentHome)) return 0;
+    if (loc == RoutePaths.profile) return 1;
     return 0;
   }
 
-  void _onItemTapped(BuildContext context, int index) {
+  void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0:
         context.go(RoutePaths.studentHome);
@@ -547,11 +595,9 @@ class _StudentShell extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════
-// TEACHER SHELL — 4 TA TAB
-// ✅ REFACTOR FIX: 3 tab → 4 tab
-// Dashboard | Sinflar | Kontent | Profil
-// ═══════════════════════════════════════
+// ══════════════════════════════════════
+// TEACHER SHELL — 4 ta tab
+// ══════════════════════════════════════
 class _TeacherShell extends StatelessWidget {
   final Widget child;
   const _TeacherShell({required this.child});
@@ -561,8 +607,8 @@ class _TeacherShell extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(context, index),
+        selectedIndex: _selectedIndex(context),
+        onDestinationSelected: (i) => _onTap(context, i),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -579,7 +625,6 @@ class _TeacherShell extends StatelessWidget {
             selectedIcon: Icon(Icons.auto_awesome),
             label: 'Kontent',
           ),
-          // ✅ YANGI: Profil tab
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
@@ -590,16 +635,16 @@ class _TeacherShell extends StatelessWidget {
     );
   }
 
-  int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith(RoutePaths.teacherDashboard)) return 0;
-    if (location.startsWith(RoutePaths.teacherClasses)) return 1;
-    if (location.startsWith(RoutePaths.contentGenerator)) return 2;
-    if (location == RoutePaths.teacherProfile) return 3;
+  int _selectedIndex(BuildContext context) {
+    final loc = GoRouterState.of(context).matchedLocation;
+    if (loc.startsWith(RoutePaths.teacherDashboard)) return 0;
+    if (loc.startsWith(RoutePaths.teacherClasses)) return 1;
+    if (loc.startsWith(RoutePaths.contentGenerator)) return 2;
+    if (loc == RoutePaths.teacherProfile) return 3;
     return 0;
   }
 
-  void _onItemTapped(BuildContext context, int index) {
+  void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0:
         context.go(RoutePaths.teacherDashboard);

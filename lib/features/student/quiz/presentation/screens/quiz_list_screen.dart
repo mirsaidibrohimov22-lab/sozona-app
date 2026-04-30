@@ -34,8 +34,9 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
     if (user == null) return;
     ref.read(quizProvider.notifier).loadQuizzes(
           userId: user.id,
+          // ✅ FIX: Firestore filter 'english'/'german' ishlatadi — to'g'ri
           language: user.learningLanguage.name,
-          level: user.level.name,
+          level: user.level.name.toUpperCase(),
         );
   }
 
@@ -257,17 +258,54 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
   void _showAiQuizDialog(String userId) {
     if (userId.isEmpty) return;
     final user = ref.read(authNotifierProvider).user;
-    final lang = user?.learningLanguage.name ?? 'en';
-    final userLevel = user?.level.name ?? 'A1';
+    // ✅ FIX: enum nomi 'german'→'de', 'english'→'en' (Cloud Function uchun)
+    final lang = user?.learningLanguage.name == 'german' ? 'de' : 'en';
+    final userLevel = user?.level.name.toUpperCase() ?? 'A1';
 
     String selectedTopic = '';
     String selectedGrammar = '';
     String selectedLevel = userLevel;
     int questionCount = 10;
+    final topicController = TextEditingController();
+    final grammarController = TextEditingController();
 
     final topicSuggestions = lang == 'de'
-        ? ['Im Supermarkt', 'Am Bahnhof', 'Im Restaurant', 'Familie', 'Arbeit']
-        : ['Daily Life', 'Travel', 'Work & Business', 'Health', 'Technology'];
+        ? [
+            'Im Supermarkt',
+            'Am Bahnhof',
+            'Im Restaurant',
+            'Familie und Freunde',
+            'Arbeitsalltag',
+            'Reisen und Urlaub',
+            'Sport und Freizeit',
+            'Gesundheit',
+            'Schule und Bildung',
+            'Technologie',
+            'Natur und Umwelt',
+            'Kultur und Kunst',
+            'Wohnen',
+            'Einkaufen',
+            'Essen und Trinken',
+          ]
+        : [
+            'Daily Life',
+            'Travel & Tourism',
+            'Work & Business',
+            'Health & Wellness',
+            'Science & Technology',
+            'Culture & Arts',
+            'Sports & Hobbies',
+            'Food & Cooking',
+            'Education',
+            'Environment',
+            'Shopping',
+            'Music & Movies',
+            'Family & Relationships',
+            'Social Media',
+            'History',
+            'Animals & Nature',
+            'Cities & Transport',
+          ];
 
     final levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
 
@@ -390,8 +428,9 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
                           TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: topicController,
                     decoration: InputDecoration(
-                      hintText: 'Mavzu kiriting...',
+                      hintText: 'Masalan: Sports, Essen, Technology...',
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12)),
                       prefixIcon: const Icon(Icons.topic_outlined),
@@ -407,7 +446,10 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
                     children: topicSuggestions.map((t) {
                       final isSel = selectedTopic == t;
                       return GestureDetector(
-                        onTap: () => setModalState(() => selectedTopic = t),
+                        onTap: () => setModalState(() {
+                          selectedTopic = t;
+                          topicController.text = t;
+                        }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -457,14 +499,29 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  TextField(
+                    controller: grammarController,
+                    decoration: InputDecoration(
+                      hintText: 'O\'zingiz yozing yoki pastdan tanlang...',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.spellcheck),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: (v) => setModalState(() => selectedGrammar = v),
+                  ),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: grammarTopics.map((g) {
                       final isSel = selectedGrammar == g;
                       return GestureDetector(
-                        onTap: () => setModalState(
-                            () => selectedGrammar = isSel ? '' : g),
+                        onTap: () => setModalState(() {
+                          selectedGrammar = isSel ? '' : g;
+                          grammarController.text = selectedGrammar;
+                        }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -560,7 +617,10 @@ class _QuizListScreenState extends ConsumerState<QuizListScreen> {
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      topicController.dispose();
+      grammarController.dispose();
+    });
   }
 
   Future<void> _confirmDelete(Quiz quiz) async {

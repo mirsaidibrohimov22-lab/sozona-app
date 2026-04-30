@@ -81,6 +81,11 @@ class UserEntity extends Equatable {
   /// Profil sozlanganmi (onboarding tugaganmi)
   final bool isProfileComplete;
 
+  // ✅ YANGI: Premium va O'zbekiston
+  final bool isPremium;
+  final bool isUzbekUser;
+  final DateTime? premiumExpiresAt;
+
   const UserEntity({
     required this.id,
     required this.displayName,
@@ -97,6 +102,9 @@ class UserEntity extends Equatable {
     required this.updatedAt,
     this.lastLoginAt,
     this.isProfileComplete = false,
+    this.isPremium = false,
+    this.isUzbekUser = false,
+    this.premiumExpiresAt,
   });
 
   /// Foydalanuvchi o'quvchimi?
@@ -107,6 +115,13 @@ class UserEntity extends Equatable {
 
   /// Nemis tili o'rganayaptimi? (Artikel moduli uchun)
   bool get isLearningGerman => learningLanguage == LearningLanguage.german;
+
+  /// Premium faolmi?
+  bool get hasActivePremium {
+    if (!isPremium) return false;
+    if (premiumExpiresAt == null) return true;
+    return premiumExpiresAt!.isAfter(DateTime.now());
+  }
 
   /// Yangi nusxa yaratish (immutability)
   UserEntity copyWith({
@@ -125,6 +140,9 @@ class UserEntity extends Equatable {
     DateTime? updatedAt,
     DateTime? lastLoginAt,
     bool? isProfileComplete,
+    bool? isPremium,
+    bool? isUzbekUser,
+    DateTime? premiumExpiresAt,
   }) {
     return UserEntity(
       id: id ?? this.id,
@@ -142,6 +160,9 @@ class UserEntity extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+      isPremium: isPremium ?? this.isPremium,
+      isUzbekUser: isUzbekUser ?? this.isUzbekUser,
+      premiumExpiresAt: premiumExpiresAt ?? this.premiumExpiresAt,
     );
   }
 
@@ -162,5 +183,8 @@ class UserEntity extends Equatable {
         updatedAt,
         lastLoginAt,
         isProfileComplete,
+        isPremium,
+        isUzbekUser,
+        premiumExpiresAt,
       ];
 }

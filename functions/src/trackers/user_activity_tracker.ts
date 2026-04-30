@@ -1,8 +1,7 @@
 // functions/src/trackers/user_activity_tracker.ts
 // SO'ZONA — Foydalanuvchi faoliyat tracker
-// Har bir mashq natijasini saqlaydi va profil hisoblaydi
-// ✅ Prompt talabi: userId, skillType, topic, difficulty, correctAnswers, wrongAnswers,
-//    responseTime, vocabularyUsed, grammarErrors
+// ✅ FIX v2.0: progress/{userId} da currentStreak va lastActiveDate yangilanadi
+//    Endi daraxt animatsiyasi va streak ish bo'yicha to'g'ri ko'rsatiladi
 
 import * as admin from 'firebase-admin';
 
@@ -13,7 +12,6 @@ import * as admin from 'firebase-admin';
 export type SkillType = 'speaking' | 'listening' | 'quiz' | 'flashcard';
 export type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
-/** Har bir mashq natijasi — Firestore ga saqlanadi */
 export interface ActivityRecord {
     userId: string;
     skillType: SkillType;
@@ -21,30 +19,29 @@ export interface ActivityRecord {
     difficulty: DifficultyLevel;
     correctAnswers: number;
     wrongAnswers: number;
-    responseTime: number;         // soniyalarda
-    vocabularyUsed: string[];     // ishlatilgan so'zlar
-    grammarErrors: string[];      // grammatik xatolar
+    responseTime: number;
+    vocabularyUsed: string[];
+    grammarErrors: string[];
     language: 'en' | 'de';
-    level: string;                // A1, A2, B1...
+    level: string;
     timestamp: FirebaseFirestore.Timestamp;
     sessionId?: string;
     contentId?: string;
-    // AI tahlili uchun qo'shimcha
-    scorePercent: number;         // 0-100
-    weakItems: string[];          // xato bo'lgan elementlar
-    strongItems: string[];        // to'g'ri bo'lgan elementlar
+    scorePercent: number;
+    weakItems: string[];
+    strongItems: string[];
+    classId?: string; // ✅ YANGI: Teacher analytics uchun
 }
 
-/** Foydalanuvchi profili — AI adaptive tizim uchun */
 export interface UserProfile {
     userId: string;
-    vocabularyLevel: number;      // 0-100
-    grammarLevel: number;         // 0-100
-    listeningLevel: number;       // 0-100
-    speakingLevel: number;        // 0-100
-    weakTopics: string[];         // zaif mavzular
-    strongTopics: string[];       // kuchli mavzular
-    overallLevel: string;         // A1, A2, B1...
+    vocabularyLevel: number;
+    grammarLevel: number;
+    listeningLevel: number;
+    speakingLevel: number;
+    weakTopics: string[];
+    strongTopics: string[];
+    overallLevel: string;
     totalActivities: number;
     averageScore: number;
     lastActivityAt: FirebaseFirestore.Timestamp;
@@ -52,22 +49,13 @@ export interface UserProfile {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ACTIVITY SAQALASH
+// ACTIVITY SAQLASH
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Yangi mashq natijasini Firestore ga saqlash.
- * 
- * Qo'llanishi:
- * - Quiz tugaganda
- * - Flashcard sessiya tugaganda
- * - Listening tugaganda
- * - Speaking tugaganda
- */
 export async function saveActivity(record: ActivityRecord): Promise<string> {
     const db = admin.firestore();
 
-    // 1. Faoliyatni saqlash — undefined maydonlarni olib tashlaymiz
+    // 1. Faoliyatni saqlash
     const cleanRecord: Record<string, unknown> = {
         userId: record.userId,
         skillType: record.skillType,
@@ -85,35 +73,108 @@ export async function saveActivity(record: ActivityRecord): Promise<string> {
         strongItems: record.strongItems,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
-    // Optional maydonlarni faqat mavjud bo'lsa qo'shamiz
     if (record.sessionId) cleanRecord['sessionId'] = record.sessionId;
     if (record.contentId) cleanRecord['contentId'] = record.contentId;
+    if (record.classId) cleanRecord['classId'] = record.classId; // ✅ YANGI
 
     const activityRef = await db.collection('activities').add(cleanRecord);
 
-    // 2. Foydalanuvchi profilini yangilash
+    // 2. Streak yangilash (progress collection)
+    await updateStreak(record.userId);
+
+    // 3. Foydalanuvchi profilini yangilash (userProfiles collection)
     await updateUserProfile(record.userId, record);
+
+    // 4. ✅ YANGI: classId bo'lsa — teacher dashboard uchun members docni yangilash
+    if (record.classId) {
+        await updateClassMemberStats(record.userId, record.classId);
+    }
 
     console.log(`📊 Faoliyat saqlandi: ${record.skillType} | ${record.userId} | ${record.scorePercent}%`);
     return activityRef.id;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROFIL HISOBLASH
+// ✅ YANGI: STREAK YANGILASH LOGIKASI
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Foydalanuvchi profilini yangilash — oxirgi 50 ta faoliyatga asoslanadi.
- * 
- * Hisoblash:
- * - Har bir skillType bo'yicha o'rtacha ball → vocabularyLevel, grammarLevel, ...
- * - Eng ko'p xato qilinadigan mavzular → weakTopics
- * - Eng yaxshi natijalari → strongTopics
+ * Har mashq tugaganda progress/{userId} da streak yangilanadi.
+ *
+ * Qoidalar:
+ * - Bugun birinchi marta kirsa → streak + 1, lastActiveDate = bugun
+ * - Kecha kirgan bo'lsa → streak + 1 (ketma-ketlik davom etadi)
+ * - 2+ kun bo'lsa → streak = 1 (boshidan)
+ * - Bugun allaqachon hisoblangan bo'lsa → o'zgarmaydi
  */
+async function updateStreak(userId: string): Promise<void> {
+    const db = admin.firestore();
+    const progressRef = db.collection('progress').doc(userId);
+
+    try {
+        await db.runTransaction(async (tx) => {
+            const doc = await tx.get(progressRef);
+            const data = doc.exists ? doc.data()! : {};
+
+            const now = new Date();
+            const todayStr = toDateStr(now); // "2026-03-20"
+
+            const lastActiveRaw = data['lastActiveDate'] as admin.firestore.Timestamp | undefined;
+            const lastDateStr = lastActiveRaw ? toDateStr(lastActiveRaw.toDate()) : null;
+
+            // Bugun allaqachon hisoblangan → hech narsa qilma
+            if (lastDateStr === todayStr) {
+                console.log(`✅ Streak bugun allaqachon yangilangan: ${userId}`);
+                return;
+            }
+
+            const currentStreak = (data['currentStreak'] as number) ?? 0;
+            const longestStreak = (data['longestStreak'] as number) ?? 0;
+
+            let newStreak: number;
+
+            if (lastDateStr === null) {
+                // Birinchi marta
+                newStreak = 1;
+            } else {
+                const yesterdayStr = toDateStr(new Date(now.getTime() - 86400000));
+                if (lastDateStr === yesterdayStr) {
+                    // Kecha kelgan → ketma-ketlik davom etadi
+                    newStreak = currentStreak + 1;
+                } else {
+                    // 2+ kun bo'ldi → boshidan
+                    newStreak = 1;
+                }
+            }
+
+            const newLongest = Math.max(longestStreak, newStreak);
+
+            tx.set(progressRef, {
+                currentStreak: newStreak,
+                longestStreak: newLongest,
+                lastActiveDate: admin.firestore.Timestamp.fromDate(now),
+            }, { merge: true });
+
+            console.log(`🔥 Streak yangilandi: ${userId} | ${currentStreak} → ${newStreak} kun`);
+        });
+    } catch (e) {
+        // Streak xatosi asosiy oqimni buzmaydi
+        console.error(`⚠️ Streak yangilash xatosi (${userId}):`, e);
+    }
+}
+
+/** Date ni "YYYY-MM-DD" formatiga o'tkazish */
+function toDateStr(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFIL HISOBLASH
+// ═══════════════════════════════════════════════════════════════
+
 async function updateUserProfile(userId: string, latestActivity: ActivityRecord): Promise<void> {
     const db = admin.firestore();
 
-    // Oxirgi 50 ta faoliyatni olish
     const activitiesSnap = await db
         .collection('activities')
         .where('userId', '==', userId)
@@ -123,13 +184,8 @@ async function updateUserProfile(userId: string, latestActivity: ActivityRecord)
 
     const activities = activitiesSnap.docs.map(doc => doc.data() as ActivityRecord);
 
-    // Skill bo'yicha ball hisoblash
     const skillScores = calculateSkillScores(activities);
-
-    // Zaif va kuchli mavzularni aniqlash
     const { weakTopics, strongTopics } = analyzeTopics(activities);
-
-    // Umumiy darajani hisoblash
     const avgScore = skillScores.overall;
     const overallLevel = scoreToLevel(avgScore);
 
@@ -148,9 +204,7 @@ async function updateUserProfile(userId: string, latestActivity: ActivityRecord)
         updatedAt: admin.firestore.Timestamp.now(),
     };
 
-    // Profil saqlash (upsert)
     await db.collection('userProfiles').doc(userId).set(profile, { merge: true });
-
     console.log(`👤 Profil yangilandi: ${userId} | Level: ${overallLevel} | Avg: ${avgScore.toFixed(1)}%`);
 }
 
@@ -166,7 +220,6 @@ interface SkillScoresResult {
     overall: number;
 }
 
-/** Skill bo'yicha o'rtacha ball — 0-100 */
 function calculateSkillScores(activities: ActivityRecord[]): SkillScoresResult {
     const skillMap: Record<string, number[]> = {
         vocabulary: [],
@@ -176,18 +229,15 @@ function calculateSkillScores(activities: ActivityRecord[]): SkillScoresResult {
     };
 
     for (const a of activities) {
-        // Flashcard va Quiz → vocabulary + grammar
         if (a.skillType === 'flashcard') {
             skillMap.vocabulary.push(a.scorePercent);
         } else if (a.skillType === 'quiz') {
-            // Quiz grammatika va lug'atni aralash o'lchaydi
             skillMap.vocabulary.push(a.scorePercent * 0.4);
             skillMap.grammar.push(a.scorePercent * 0.6);
         } else if (a.skillType === 'listening') {
             skillMap.listening.push(a.scorePercent);
         } else if (a.skillType === 'speaking') {
             skillMap.speaking.push(a.scorePercent);
-            // Speaking grammatikani ham o'lchaydi
             if (a.grammarErrors.length > 0) {
                 const grammarScore = Math.max(0, 100 - a.grammarErrors.length * 15);
                 skillMap.grammar.push(grammarScore);
@@ -207,12 +257,10 @@ function calculateSkillScores(activities: ActivityRecord[]): SkillScoresResult {
     return { vocabulary, grammar, listening, speaking, overall };
 }
 
-/** Zaif va kuchli mavzularni aniqlash */
 function analyzeTopics(activities: ActivityRecord[]): {
     weakTopics: string[];
     strongTopics: string[];
 } {
-    // Mavzu bo'yicha balllarni yig'ish
     const topicScores: Record<string, { total: number; count: number; errors: number }> = {};
 
     for (const a of activities) {
@@ -224,7 +272,6 @@ function analyzeTopics(activities: ActivityRecord[]): {
         topicScores[a.topic].errors += a.wrongAnswers;
     }
 
-    // Mavzularni o'rtacha ball bo'yicha saralash
     const sorted = Object.entries(topicScores)
         .map(([topic, data]) => ({
             topic,
@@ -233,14 +280,12 @@ function analyzeTopics(activities: ActivityRecord[]): {
         }))
         .sort((a, b) => a.avgScore - b.avgScore);
 
-    // Eng zaif 5 ta va eng kuchli 5 ta
     const weakTopics = sorted.slice(0, 5).map(t => t.topic);
     const strongTopics = sorted.slice(-5).reverse().map(t => t.topic);
 
     return { weakTopics, strongTopics };
 }
 
-/** Ball asosida CEFR darajasini aniqlash */
 function scoreToLevel(score: number): string {
     if (score >= 85) return 'B2';
     if (score >= 70) return 'B1';
@@ -249,10 +294,74 @@ function scoreToLevel(score: number): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROFIL OLISH (Flutter dan chaqiriladi)
+// ✅ YANGI: TEACHER DASHBOARD — MEMBERS DOC YANGILASH
 // ═══════════════════════════════════════════════════════════════
 
-/** Foydalanuvchi profilini olish */
+/**
+ * O'quvchi mashq bajarganida classes/{classId}/members/{userId} docni
+ * yangilaydi — teacher dashboard real vaqtda ko'rsin deb.
+ */
+async function updateClassMemberStats(userId: string, classId: string): Promise<void> {
+    const db = admin.firestore();
+    const memberRef = db.collection('classes').doc(classId).collection('members').doc(userId);
+
+    try {
+        // Bu o'quvchining so'nggi 50 ta faolligini ol
+        const activitiesSnap = await db
+            .collection('activities')
+            .where('userId', '==', userId)
+            .orderBy('timestamp', 'desc')
+            .limit(50)
+            .get();
+
+        const activities = activitiesSnap.docs.map(d => d.data() as ActivityRecord);
+        const totalAttempts = activitiesSnap.size;
+
+        // O'rtacha ball hisoblash (barcha skilllar bo'yicha)
+        const avgScore = totalAttempts > 0
+            ? Math.round(activities.reduce((sum, a) => sum + (a.scorePercent ?? 0), 0) / totalAttempts)
+            : 0;
+
+        // Har bir skill bo'yicha ball
+        const skillMap: Record<string, number[]> = { quiz: [], listening: [], speaking: [], flashcard: [] };
+        for (const a of activities) {
+            if (skillMap[a.skillType]) skillMap[a.skillType].push(a.scorePercent ?? 0);
+        }
+        const avg = (arr: number[]) => arr.length > 0
+            ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length)
+            : 0;
+        const skillScores = {
+            quiz: avg(skillMap.quiz),
+            listening: avg(skillMap.listening),
+            speaking: avg(skillMap.speaking),
+            flashcard: avg(skillMap.flashcard),
+        };
+
+        // Streakni progress collectiondan ol
+        const progressDoc = await db.collection('progress').doc(userId).get();
+        const currentStreak = progressDoc.exists
+            ? ((progressDoc.data()!['currentStreak'] as number) ?? 0)
+            : 0;
+
+        await memberRef.set({
+            averageScore: avgScore,
+            totalAttempts: totalAttempts,
+            currentStreak: currentStreak,
+            skillScores: skillScores,
+            lastActiveAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        console.log(`📊 Members doc yangilandi: ${userId} | class: ${classId} | avg: ${avgScore}%`);
+    } catch (e) {
+        // Members doc yangilanmasa ham asosiy oqim buzilmaydi
+        console.error(`⚠️ Members doc yangilash xatosi (${userId}/${classId}):`, e);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFIL OLISH
+// ═══════════════════════════════════════════════════════════════
+
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
     const db = admin.firestore();
     const doc = await db.collection('userProfiles').doc(userId).get();
@@ -260,7 +369,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return doc.data() as UserProfile;
 }
 
-/** Foydalanuvchining oxirgi faoliyatlarini olish */
 export async function getRecentActivities(
     userId: string,
     skillType?: SkillType,

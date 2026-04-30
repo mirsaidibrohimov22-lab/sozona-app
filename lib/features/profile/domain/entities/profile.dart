@@ -81,6 +81,8 @@ class UserProfile extends Equatable {
   final int currentStreak;
   final int longestStreak;
   final int totalXp;
+  // ✅ FIX: badges — daily box va streak mukofotlaridan yig'ilgan nishonlar
+  final List<String> badges;
   final UserNotificationSettings notifications;
   final UserPreferences preferences;
   final DateTime? lastActiveDate;
@@ -101,6 +103,7 @@ class UserProfile extends Equatable {
     this.currentStreak = 0,
     this.longestStreak = 0,
     this.totalXp = 0,
+    this.badges = const [],
     this.notifications = const UserNotificationSettings(),
     this.preferences = const UserPreferences(),
     this.lastActiveDate,
@@ -129,6 +132,7 @@ class UserProfile extends Equatable {
     int? currentStreak,
     int? longestStreak,
     int? totalXp,
+    List<String>? badges,
     UserNotificationSettings? notifications,
     UserPreferences? preferences,
     DateTime? lastActiveDate,
@@ -148,6 +152,7 @@ class UserProfile extends Equatable {
         currentStreak: currentStreak ?? this.currentStreak,
         longestStreak: longestStreak ?? this.longestStreak,
         totalXp: totalXp ?? this.totalXp,
+        badges: badges ?? this.badges,
         notifications: notifications ?? this.notifications,
         preferences: preferences ?? this.preferences,
         lastActiveDate: lastActiveDate ?? this.lastActiveDate,
@@ -156,5 +161,5 @@ class UserProfile extends Equatable {
       );
 
   @override
-  List<Object?> get props => [id, fullName, role, level, totalXp];
+  List<Object?> get props => [id, fullName, role, level, totalXp, badges];
 }

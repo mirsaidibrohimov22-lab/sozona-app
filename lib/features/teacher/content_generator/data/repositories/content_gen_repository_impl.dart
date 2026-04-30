@@ -26,6 +26,7 @@ class ContentGeneratorRepositoryImpl implements ContentGeneratorRepository {
     required String topic,
     required int questionCount,
     String difficulty = 'medium',
+    String grammar = '',
   }) async {
     if (!await networkInfo.isConnected) {
       return const Left(
@@ -38,6 +39,7 @@ class ContentGeneratorRepositoryImpl implements ContentGeneratorRepository {
         topic: topic,
         questionCount: questionCount,
         difficulty: difficulty,
+        grammar: grammar,
       );
       return Right(result);
     } on ServerException catch (e) {

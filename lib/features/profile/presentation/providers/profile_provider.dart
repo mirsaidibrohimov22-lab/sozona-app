@@ -13,6 +13,13 @@ import 'package:my_first_app/features/profile/domain/usecases/request_data_expor
 import 'package:my_first_app/features/profile/domain/usecases/update_preferences.dart';
 import 'package:my_first_app/features/profile/domain/usecases/update_profile.dart';
 
+/// Rasm ko'rinishi sozlamasi
+enum AvatarVisibility {
+  everyone,
+  classOnly,
+  onlyMe,
+}
+
 // ─── Repository provider ───
 final profileRepositoryProvider = Provider<ProfileRepositoryImpl>((ref) {
   return ProfileRepositoryImpl(
@@ -27,6 +34,7 @@ final profileRepositoryProvider = Provider<ProfileRepositoryImpl>((ref) {
 class ProfileState {
   final bool isLoading;
   final bool isSaving;
+  final bool isUploadingAvatar; // ✅ YANGI
   final String? error;
   final String? successMessage;
   final UserProfile? profile;
@@ -34,6 +42,7 @@ class ProfileState {
   const ProfileState({
     this.isLoading = false,
     this.isSaving = false,
+    this.isUploadingAvatar = false,
     this.error,
     this.successMessage,
     this.profile,
@@ -42,6 +51,7 @@ class ProfileState {
   ProfileState copyWith({
     bool? isLoading,
     bool? isSaving,
+    bool? isUploadingAvatar,
     String? error,
     String? successMessage,
     UserProfile? profile,
@@ -49,6 +59,7 @@ class ProfileState {
       ProfileState(
         isLoading: isLoading ?? this.isLoading,
         isSaving: isSaving ?? this.isSaving,
+        isUploadingAvatar: isUploadingAvatar ?? this.isUploadingAvatar,
         error: error,
         successMessage: successMessage,
         profile: profile ?? this.profile,
@@ -141,6 +152,93 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         successMessage: 'Saqlandi',
       ),
     );
+  }
+
+  // ✅ FIX: Rasm yuklash — server dan majburiy reload qiladi
+  // Avval: loadProfile() cache dan o'qiydi → yangi rasm ko'rinmaydi
+  // Endi: Source.server bilan yuklab, state ni yangilaydi
+  Future<void> uploadAvatar({
+    required String userId,
+    required String filePath,
+    required AvatarVisibility visibility,
+  }) async {
+    if (!mounted) return;
+    state = state.copyWith(isUploadingAvatar: true, error: null);
+    try {
+      // 1. Storage ga yuklash (avatarUrl + photoUrl yoziladi)
+      final uploadResult = await _repo.uploadAvatar(
+        userId: userId,
+        filePath: filePath,
+      );
+
+      final url = uploadResult.fold(
+        (failure) => throw Exception(failure.message),
+        (url) => url,
+      );
+
+      // 2. Ko'rinish sozlamasini saqlash
+      final visStr = visibility == AvatarVisibility.everyone
+          ? 'everyone'
+          : visibility == AvatarVisibility.classOnly
+              ? 'classOnly'
+              : 'onlyMe';
+
+      await UpdateProfile(_repo).call(
+        UpdateProfileParams(
+          userId: userId,
+          avatarUrl: url,
+          avatarVisibility: visStr,
+        ),
+      );
+
+      if (!mounted) return;
+
+      // ✅ FIX: State ni darhol yangilash — serverdan kutmasdan
+      // avatarUrl ni profile da yangilaymiz
+      final updatedProfile = state.profile?.copyWith(avatarUrl: url);
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        profile: updatedProfile,
+        successMessage: 'Rasm yangilandi!',
+      );
+
+      // Background da serverdan to'liq yangilash
+      await loadProfile(userId);
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        error: 'Rasmni yuklashda xato: $e',
+      );
+    }
+  }
+
+  // ✅ YANGI: Rasmni o'chirish
+  Future<void> deleteAvatar({required String userId}) async {
+    if (!mounted) return;
+    state = state.copyWith(isUploadingAvatar: true, error: null);
+    try {
+      await _repo.deleteAvatar(userId: userId);
+
+      if (!mounted) return;
+
+      // State dan avatarUrl ni darhol olib tashlaymiz
+      final updatedProfile = state.profile?.copyWith(avatarUrl: '');
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        profile: updatedProfile,
+        successMessage: "Rasm o'chirildi!",
+      );
+
+      // Background da serverdan to'liq yangilash
+      await loadProfile(userId);
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isUploadingAvatar: false,
+        error: "Rasmni o'chirishda xato: $e",
+      );
+    }
   }
 
   Future<bool> requestDataExport(String userId) async {

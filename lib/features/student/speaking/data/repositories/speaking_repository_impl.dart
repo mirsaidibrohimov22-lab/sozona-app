@@ -1,3 +1,4 @@
+import 'dart:async';
 // lib/features/student/speaking/data/repositories/speaking_repository_impl.dart
 // So'zona — Speaking Repository Implementation
 // ✅ v2.0: HAQIQIY AI assessment (hardcoded natija O'CHIRILDI)
@@ -5,6 +6,7 @@
 // ✅ v3.0 FIX: language: 'en', level: 'A1' hardcode O'CHIRILDI
 // ✅ YANGI: assessVoice() — ovoz yozish + AI baholash (speaking_screen.dart uchun)
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dartz/dartz.dart';
 import 'package:my_first_app/core/error/exceptions.dart';
 import 'package:my_first_app/core/error/failures.dart';
@@ -142,13 +144,30 @@ class SpeakingRepositoryImpl implements SpeakingRepository {
         grammarErrors: grammarErrors,
       );
 
-      // ✅ FIX: Member progress yangilash (averageScore, totalAttempts)
+      // ✅ FIX: Member progress yangilash
       if (_activeUserId.isNotEmpty) {
         await MemberProgressService.instance.recordAttempt(
           userId: _activeUserId,
           scorePercent: overallScore.toDouble(),
           skillType: 'speaking',
         );
+
+        // ✅ YANGI: AI Murabbiy — xato yozish (ball 80 dan past bo'lsa)
+        final exerciseId = _activeExercise?.id ?? '';
+        if (overallScore < 80 && exerciseId.isNotEmpty) {
+          unawaited(
+            FirebaseFunctions.instanceFor(region: 'us-central1')
+                .httpsCallable('recordMistake')
+                .call({
+              'contentId': exerciseId,
+              'contentType': 'speaking',
+              'userAnswer': grammarErrors.isNotEmpty ? grammarErrors.first : '',
+              'correctAnswer': '',
+              'scorePercent': overallScore.toDouble(),
+              'language': language,
+            }),
+          );
+        }
       }
 
       // speaking_screen.dart ga qaytariladigan format

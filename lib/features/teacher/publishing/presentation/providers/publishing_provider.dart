@@ -9,7 +9,6 @@ import 'package:my_first_app/features/teacher/publishing/domain/usecases/schedul
 // QO'YISH: lib/features/teacher/publishing/presentation/providers/publishing_provider.dart
 // Publishing Provider — State management
 
-
 /// Publishing State
 class PublishingState {
   final bool isPublishing;
@@ -115,6 +114,3 @@ final publishingRepositoryProvider = Provider<PublishingRepository>((ref) {
 });
 
 // Core providers (bu fayllar core papkada bo'lishi kerak)
-
-
-

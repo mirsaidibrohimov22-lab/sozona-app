@@ -57,12 +57,20 @@ dependencies:
   # 🎤 SPEECH TO TEXT
   speech_to_text: ^7.0.0
 
+  # 🎙️ VOICE ASSISTANT — fon servisi (ekran o'chsa ham ishlaydi)
+  flutter_foreground_task: ^8.13.0
+
+  # 🖼️ IMAGE
+  image_picker: ^1.0.7
+
   # 🎨 UI
   flutter_screenutil: ^5.9.3
   lottie: ^3.2.0
   shimmer: ^3.0.0
   cached_network_image: ^3.4.1
   fl_chart: ^0.69.0
+  qr_flutter: ^4.1.0
+  app_links: ^6.3.0
   flutter_svg: ^2.0.16
   google_fonts: ^6.1.0
 
@@ -72,11 +80,16 @@ dependencies:
   equatable: ^2.0.7
   dartz: ^0.10.1
   rxdart: ^0.28.0
-  # ✅ Flutter 3.27.4 intl 0.19.0 talab qiladi
-  intl: ^0.19.0
+  intl: ^0.20.2
   url_launcher: ^6.3.1
   share_plus: ^10.1.4
   package_info_plus: ^8.3.0
+
+  # ✅ Google Play In-App Purchase
+  in_app_purchase: ^3.1.13
+
+  # ✅ Timezone (notification aniq vaqtda kelishi uchun)
+  timezone: ^0.9.4
 
 dev_dependencies:
   flutter_test:

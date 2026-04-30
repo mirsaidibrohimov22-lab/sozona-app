@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:my_first_app/core/constants/app_colors.dart';
+import 'package:my_first_app/features/auth/domain/entities/user_entity.dart'; // ✅ FIX
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/student/flashcards/presentation/providers/flashcard_provider.dart';
 import 'package:my_first_app/features/student/flashcards/presentation/widgets/flashcard_widget.dart';
@@ -32,7 +33,11 @@ class _FlashcardPracticeScreenState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(flashcardProvider);
-    final uid = ref.read(authNotifierProvider).user?.id ?? '';
+    final user = ref.watch(authNotifierProvider).user;
+    final uid = user?.id ?? '';
+    // ✅ FIX: user profildan to'g'ri locale — 'de-DE' yoki 'en-US'
+    final ttsLocale =
+        user?.learningLanguage == LearningLanguage.german ? 'de-DE' : 'en-US';
 
     // Yuklanmoqda
     if (state.isLoading) {
@@ -84,7 +89,7 @@ class _FlashcardPracticeScreenState
       appBar: AppBar(
         title: Text('${state.currentIndex + 1} / ${state.cards.length}'),
         actions: [
-          TtsButton(text: card.front, language: 'de'),
+          TtsButton(text: card.front, language: ttsLocale),
           const SizedBox(width: 8),
         ],
       ),

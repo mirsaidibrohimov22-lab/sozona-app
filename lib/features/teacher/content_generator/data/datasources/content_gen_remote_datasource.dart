@@ -14,6 +14,7 @@ abstract class ContentGeneratorRemoteDataSource {
     required String topic,
     required int questionCount,
     required String difficulty,
+    String grammar = '',
   });
 
   Future<GeneratedContentModel> generateFlashcards({
@@ -51,12 +52,13 @@ class ContentGeneratorRemoteDataSourceImpl
     required String topic,
     required int questionCount,
     required String difficulty,
+    String grammar = '',
   }) async {
     try {
       debugPrint('🚀 generateQuiz chaqirilmoqda: $topic | $level | $language');
       final callable = functions.httpsCallable(
         'generateQuiz',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 120)),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 45)),
       );
       final result = await callable.call({
         'language': language,
@@ -64,6 +66,7 @@ class ContentGeneratorRemoteDataSourceImpl
         'topic': topic,
         'questionCount': questionCount,
         'difficulty': difficulty,
+        'grammar': grammar,
         'save': false,
       });
       final data = result.data as Map<String, dynamic>;
@@ -97,7 +100,7 @@ class ContentGeneratorRemoteDataSourceImpl
       debugPrint('🚀 generateFlashcards chaqirilmoqda: $topic | $level');
       final callable = functions.httpsCallable(
         'generateFlashcards',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 120)),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 45)),
       );
       final result = await callable.call({
         'language': language,
@@ -137,7 +140,7 @@ class ContentGeneratorRemoteDataSourceImpl
           '🚀 generateListening chaqirilmoqda: $topic | $level | ${duration}s');
       final callable = functions.httpsCallable(
         'generateListening',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 120)),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 45)),
       );
       final result = await callable.call({
         'language': language,

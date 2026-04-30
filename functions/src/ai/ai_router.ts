@@ -1,8 +1,10 @@
 // functions/src/ai/ai_router.ts
-// SO'ZONA — AI Router (Gemini-only, OpenAI keyinroq qo'shiladi)
-// ✅ PATCH: OpenAI key yo'q — to'g'ridan Gemini ishlatiladi
+// SO'ZONA — AI Router
+// ✅ Gemini: barcha funksiyalar (tekin + premium)
+// ✅ OpenAI (gpt-4o-mini): faqat premium AI murabbiy mashq yaratish uchun
 
 import { geminiComplete } from './gemini_client';
+import { openAiComplete } from './openai_client';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -40,18 +42,31 @@ interface AIResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// aiRouter — prompt-based (Gemini)
+// aiRouter — Gemini (barcha umumiy funksiyalar)
 // ═══════════════════════════════════════════════════════════════
 
 export async function aiRouter(request: AiRouterRequest): Promise<AiRouterResponse> {
     console.log('🤖 Gemini ishga tushmoqda (aiRouter)...');
-    // ✅ FIX: maxTokens endi geminiComplete ga uzatiladi (avval yo'qolayotgan edi)
     const text = await geminiComplete(
         request.prompt,
         request.systemPrompt,
         request.maxTokens ?? 4096,
     );
-    return { text, content: text, model: 'gemini-1.5-flash' };
+    return { text, content: text, model: 'gemini-2.0-flash' };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// openAiRouter — OpenAI GPT-4o-mini (faqat premium murabbiy uchun)
+// ═══════════════════════════════════════════════════════════════
+
+export async function openAiRouter(request: AiRouterRequest): Promise<AiRouterResponse> {
+    console.log('🧠 OpenAI GPT-4o-mini ishga tushmoqda (premium)...');
+    const text = await openAiComplete(
+        request.prompt,
+        request.systemPrompt,
+        true, // JSON mode
+    );
+    return { text, content: text, model: 'gpt-4o-mini' };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -69,7 +84,7 @@ export async function callAI(request: AIRequest): Promise<AIResponse> {
     );
     return {
         content: text,
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash',
         usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     };
 }

@@ -6,6 +6,10 @@ plugins {
     id "com.google.firebase.crashlytics"
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
 android {
     namespace = "com.example.sozona"
     compileSdk = 36
@@ -21,9 +25,17 @@ android {
         jvmTarget = "1.8"
     }
 
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.sozona"
-        // ✅ flutter_sound + cloud_firestore talab qiladi
         minSdkVersion 24
         targetSdk = 34
         versionCode = flutter.versionCode
@@ -33,7 +45,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }

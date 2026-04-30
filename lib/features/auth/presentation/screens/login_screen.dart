@@ -1,6 +1,5 @@
 // lib/features/auth/presentation/screens/login_screen.dart
-// So'zona — Kirish ekrani
-// Email yoki Telefon bilan kirish imkoniyati
+// So'zona — Kirish ekrani (yangi dizayn)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +11,6 @@ import 'package:my_first_app/features/auth/presentation/providers/auth_provider.
 import 'package:my_first_app/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:my_first_app/core/router/route_names.dart';
 
-/// Kirish ekrani — Email va Telefon tab
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -20,75 +18,32 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  // Email form
-  final _emailFormKey = GlobalKey<FormState>();
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  // Telefon form
-  final _phoneFormKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
   @override
   void dispose() {
-    _tabController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
-  /// Email bilan kirish
   Future<void> _signInWithEmail() async {
-    if (!_emailFormKey.currentState!.validate()) return;
-
-    // Xatolikni tozalash
+    if (!_formKey.currentState!.validate()) return;
     ref.read(authNotifierProvider.notifier).clearFailure();
-
     await ref.read(authNotifierProvider.notifier).signInWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
   }
 
-  /// Telefon bilan kirish
-  Future<void> _signInWithPhone() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
-
-    ref.read(authNotifierProvider.notifier).clearFailure();
-
-    final verificationId = await ref
-        .read(authNotifierProvider.notifier)
-        .signInWithPhone(phoneNumber: _phoneController.text.trim());
-
-    if (verificationId != null && mounted) {
-      // OTP ekraniga o'tish
-      context.push(
-        '/phone-verify',
-        extra: {
-          'verificationId': verificationId,
-          'phoneNumber': _phoneController.text.trim(),
-        },
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
-    // Auth holati o'zgarganda yo'naltirish
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (!mounted) return;
       if (next.status == AuthStatus.authenticated) {
@@ -103,321 +58,282 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.spacingLg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSizes.spacingXl),
-
-              // Sarlavha
-              Text(
-                'Xush kelibsiz!',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                textAlign: TextAlign.center,
+      backgroundColor: AppColors.bgPrimary,
+      body: Column(
+        children: [
+          // ── Gradient Header ──
+          Container(
+            height: 260,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-
-              const SizedBox(height: AppSizes.spacingSm),
-
-              Text(
-                'Hisobingizga kiring',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: AppSizes.spacingXl),
-
-              // Tab bar
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgTertiary,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  dividerColor: Colors.transparent,
-                  tabs: const [
-                    Tab(text: 'Email'),
-                    Tab(text: 'Telefon'),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSizes.spacingLg),
-
-              // Xatolik xabari
-              if (authState.failure != null)
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.spacingMd),
-                  margin: const EdgeInsets.only(bottom: AppSizes.spacingMd),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-                    border: Border.all(
-                        color: AppColors.error.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: AppColors.error,
-                        size: 20,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
+            ),
+            child: SafeArea(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 1.5,
                       ),
-                      const SizedBox(width: AppSizes.spacingSm),
-                      Expanded(
+                    ),
+                    child: const Center(
+                      child: Text('🎓', style: TextStyle(fontSize: 36)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "So'zona",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Til o'rganishning aqlli yo'li",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Form ──
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Xush kelibsiz! 👋',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Hisobingizga kirish uchun ma\'lumotlarni kiriting',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Xatolik xabari
+                    if (authState.failure != null)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorLight,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: AppColors.error.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: AppColors.error, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                authState.failure!.message,
+                                style: const TextStyle(
+                                    color: AppColors.error, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Email
+                    AuthTextField(
+                      controller: _emailController,
+                      label: 'Email',
+                      hint: 'email@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icons.email_outlined,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Email kiritilishi shart';
+                        }
+                        final emailRegex =
+                            RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(value.trim())) {
+                          return 'Email formati noto\'g\'ri';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: AppSizes.spacingMd),
+
+                    // Parol
+                    AuthTextField(
+                      controller: _passwordController,
+                      label: 'Parol',
+                      hint: 'Kamida 8 belgi',
+                      obscureText: _obscurePassword,
+                      prefixIcon: Icons.lock_outline,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.textSecondary,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Parol kiritilishi shart';
+                        }
+                        if (value.length < 8) {
+                          return 'Parol kamida 8 belgidan iborat bo\'lishi kerak';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: AppSizes.spacingSm),
+
+                    // Parolni unutdim
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () =>
+                            context.push(RoutePaths.forgotPassword),
+                        child: const Text('Parolni unutdingizmi?'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Kirish tugmasi — gradient
+                    Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF6C63FF).withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed:
+                            authState.isLoading ? null : _signInWithEmail,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: authState.isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Kirish',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Ajratuvchi
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Divider(color: AppColors.border, thickness: 1),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'yoki',
+                            style: TextStyle(
+                                color: AppColors.textTertiary, fontSize: 13),
+                          ),
+                        ),
+                        Expanded(
+                          child: Divider(color: AppColors.border, thickness: 1),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Ro'yxatdan o'tish
+                    Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgTertiary,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.borderDark),
+                      ),
+                      child: TextButton(
+                        onPressed: () => context.push(RoutePaths.register),
+                        style: TextButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
                         child: Text(
-                          authState.failure!.message,
-                          style: const TextStyle(
-                            color: AppColors.error,
-                            fontSize: 14,
+                          'Yangi hisob yaratish',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-              // Tab content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Email tab
-                    _buildEmailTab(authState),
-                    // Telefon tab
-                    _buildPhoneTab(authState),
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Email kirish formasi
-  Widget _buildEmailTab(AuthState authState) {
-    return Form(
-      key: _emailFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Email input
-            AuthTextField(
-              controller: _emailController,
-              label: 'Email',
-              hint: 'email@example.com',
-              keyboardType: TextInputType.emailAddress,
-              prefixIcon: Icons.email_outlined,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email kiritilishi shart';
-                }
-                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                if (!emailRegex.hasMatch(value.trim())) {
-                  return 'Email formati noto\'g\'ri';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: AppSizes.spacingMd),
-
-            // Parol input
-            AuthTextField(
-              controller: _passwordController,
-              label: 'Parol',
-              hint: 'Kamida 8 belgi',
-              obscureText: _obscurePassword,
-              prefixIcon: Icons.lock_outline,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AppColors.textSecondary,
-                ),
-                onPressed: () {
-                  setState(() => _obscurePassword = !_obscurePassword);
-                },
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Parol kiritilishi shart';
-                }
-                if (value.length < 8) {
-                  return 'Parol kamida 8 belgidan iborat bo\'lishi kerak';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: AppSizes.spacingSm),
-
-            // Parolni unutdim
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => context.push(RoutePaths.forgotPassword),
-                child: const Text('Parolni unutdingizmi?'),
-              ),
-            ),
-
-            const SizedBox(height: AppSizes.spacingLg),
-
-            // Kirish tugmasi
-            ElevatedButton(
-              onPressed: authState.isLoading ? null : _signInWithEmail,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                ),
-              ),
-              child: authState.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Kirish',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-            ),
-
-            const SizedBox(height: AppSizes.spacingLg),
-
-            // Ro'yxatdan o'tish havolasi
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Hisobingiz yo\'qmi? ',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                TextButton(
-                  onPressed: () => context.push(RoutePaths.register),
-                  child: const Text(
-                    'Ro\'yxatdan o\'ting',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Telefon kirish formasi
-  Widget _buildPhoneTab(AuthState authState) {
-    return Form(
-      key: _phoneFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Telefon raqami input
-            AuthTextField(
-              controller: _phoneController,
-              label: 'Telefon raqami',
-              hint: '+998 90 123 45 67',
-              keyboardType: TextInputType.phone,
-              prefixIcon: Icons.phone_outlined,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Telefon raqami kiritilishi shart';
-                }
-                final phoneRegex = RegExp(r'^\+\d{10,15}$');
-                if (!phoneRegex.hasMatch(value.trim())) {
-                  return 'Telefon raqami formati: +998901234567';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: AppSizes.spacingLg),
-
-            // Telefon bilan kirish tugmasi
-            ElevatedButton(
-              onPressed: authState.isLoading ? null : _signInWithPhone,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                ),
-              ),
-              child: authState.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Kod yuborish',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-            ),
-
-            const SizedBox(height: AppSizes.spacingMd),
-
-            // Izoh
-            const Text(
-              'SMS orqali 6 xonali tasdiqlash kodi yuboriladi',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: AppSizes.spacingLg),
-
-            // Ro'yxatdan o'tish havolasi
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Hisobingiz yo\'qmi? ',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                TextButton(
-                  onPressed: () => context.push(RoutePaths.register),
-                  child: const Text(
-                    'Ro\'yxatdan o\'ting',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

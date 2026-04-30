@@ -14,6 +14,7 @@ class UpdateProfileParams extends Equatable {
   final String? preferredLanguage;
   final String? uiLanguage;
   final int? dailyGoalMinutes;
+  final String? avatarVisibility; // ✅ YANGI
 
   const UpdateProfileParams({
     required this.userId,
@@ -23,6 +24,7 @@ class UpdateProfileParams extends Equatable {
     this.preferredLanguage,
     this.uiLanguage,
     this.dailyGoalMinutes,
+    this.avatarVisibility,
   });
 
   @override
@@ -39,6 +41,7 @@ class UpdateProfile implements UseCase<UserProfile, UpdateProfileParams> {
       userId: params.userId,
       fullName: params.fullName,
       avatarUrl: params.avatarUrl,
+      avatarVisibility: params.avatarVisibility,
       level: params.level,
       preferredLanguage: params.preferredLanguage,
       uiLanguage: params.uiLanguage,

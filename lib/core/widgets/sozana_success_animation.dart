@@ -29,13 +29,13 @@ extension SozonaModuleExt on SozonaModule {
   String get title {
     switch (this) {
       case SozonaModule.quiz:
-        return "Quiz";
+        return 'Quiz';
       case SozonaModule.listening:
-        return "Listening";
+        return 'Listening';
       case SozonaModule.speaking:
-        return "Speaking";
+        return 'Speaking';
       case SozonaModule.flashcard:
-        return "Flashcard";
+        return 'Flashcard';
     }
   }
 
@@ -83,7 +83,7 @@ extension SozonaModuleExt on SozonaModule {
       case SozonaModule.quiz:
         return "Zo'r natija! 🎯";
       case SozonaModule.listening:
-        return "Ajoyib! Siz yaxshi eshitdingiz! 🎧";
+        return 'Ajoyib! Siz yaxshi eshitdingiz! 🎧';
       case SozonaModule.speaking:
         return "Barakalla! Talaffuz zo'r! 🎤";
       case SozonaModule.flashcard:
@@ -103,6 +103,7 @@ class SozonaSuccessOverlay {
     required VoidCallback onContinue,
     String? subtitle,
     List<_StatItem>? stats,
+    VoidCallback? onPremiumCoach, // ✅ FIX: AI Murabbiy tugmasi uchun
   }) {
     return PageRouteBuilder(
       opaque: false,
@@ -113,6 +114,7 @@ class SozonaSuccessOverlay {
         onContinue: onContinue,
         subtitle: subtitle,
         stats: stats,
+        onPremiumCoach: onPremiumCoach, // ✅
       ),
       transitionDuration: const Duration(milliseconds: 400),
       transitionsBuilder: (_, anim, __, child) => FadeTransition(
@@ -133,16 +135,18 @@ class SozonaSuccessScreen extends StatefulWidget {
   final VoidCallback onContinue;
   final String? subtitle;
   final List<_StatItem>? stats;
+  final VoidCallback? onPremiumCoach; // ✅ FIX: AI Murabbiy tugmasi
 
   const SozonaSuccessScreen({
-    Key? key,
+    super.key,
     required this.score,
     required this.total,
     required this.module,
     required this.onContinue,
     this.subtitle,
     this.stats,
-  }) : super(key: key);
+    this.onPremiumCoach, // ✅
+  });
 
   @override
   State<SozonaSuccessScreen> createState() => _SozonaSuccessScreenState();
@@ -232,19 +236,19 @@ class _SozonaSuccessScreenState extends State<SozonaSuccessScreen>
   double get _percentage => widget.total > 0 ? widget.score / widget.total : 0;
 
   String get _grade {
-    if (_percentage >= 0.9) return "A+";
-    if (_percentage >= 0.8) return "A";
-    if (_percentage >= 0.7) return "B";
-    if (_percentage >= 0.6) return "C";
-    return "D";
+    if (_percentage >= 0.9) return 'A+';
+    if (_percentage >= 0.8) return 'A';
+    if (_percentage >= 0.7) return 'B';
+    if (_percentage >= 0.6) return 'C';
+    return 'D';
   }
 
   String get _motivationText {
     if (_percentage >= 0.9) return "Mukammal natija! Siz zo'rsiz! 🌟";
-    if (_percentage >= 0.8) return "Ajoyib! Deyarli mukammal! 🎯";
-    if (_percentage >= 0.7) return "Yaxshi! Davom eting! 💪";
+    if (_percentage >= 0.8) return 'Ajoyib! Deyarli mukammal! 🎯';
+    if (_percentage >= 0.7) return 'Yaxshi! Davom eting! 💪';
     if (_percentage >= 0.6) return "Zo'r! Ozgina mashq qiling! 📚";
-    return "Tushunmovchilik bor, yana mashq qiling! 🔥";
+    return 'Tushunmovchilik bor, yana mashq qiling! 🔥';
   }
 
   @override
@@ -360,7 +364,7 @@ class _SozonaSuccessScreenState extends State<SozonaSuccessScreen>
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: "${_scoreAnim.value}",
+                        text: '${_scoreAnim.value}',
                         style: TextStyle(
                           color: module.color,
                           fontSize: 52,
@@ -369,7 +373,7 @@ class _SozonaSuccessScreenState extends State<SozonaSuccessScreen>
                         ),
                       ),
                       TextSpan(
-                        text: " / ${widget.total}",
+                        text: ' / ${widget.total}',
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 22,
@@ -381,7 +385,7 @@ class _SozonaSuccessScreenState extends State<SozonaSuccessScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "$_grade  •  ${(_percentage * 100).toStringAsFixed(0)}%",
+                  '$_grade  •  ${(_percentage * 100).toStringAsFixed(0)}%',
                   style: const TextStyle(
                     color: Colors.white38,
                     fontSize: 14,
@@ -443,9 +447,43 @@ class _SozonaSuccessScreenState extends State<SozonaSuccessScreen>
               offset: Offset(0, _buttonSlide.value),
               child: Opacity(
                 opacity: (1 - _buttonSlide.value / 60).clamp(0.0, 1.0),
-                child: _ContinueButton(
-                  onTap: widget.onContinue,
-                  colors: module.gradientColors,
+                child: Column(
+                  children: [
+                    _ContinueButton(
+                      onTap: widget.onContinue,
+                      colors: module.gradientColors,
+                    ),
+                    // ✅ FIX: Premium AI Murabbiy tugmasi
+                    if (widget.onPremiumCoach != null) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onPremiumCoach,
+                          icon: const Icon(
+                            Icons.workspace_premium,
+                            color: Color(0xFFFFD700),
+                            size: 16,
+                          ),
+                          label: const Text(
+                            'AI Murabbiy tahlili',
+                            style: TextStyle(
+                              color: Color(0xFFFFD700),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(
+                                color: Color(0xFFFFD700), width: 1.5),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -700,7 +738,7 @@ class _ContinueButtonState extends State<_ContinueButton>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                "Davom etish",
+                'Davom etish',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -878,17 +916,17 @@ void showQuizSuccess(
       stats: [
         _StatItem(
           label: "To'g'ri",
-          value: "$correctAnswers",
+          value: '$correctAnswers',
           icon: Icons.check_circle_rounded,
         ),
         _StatItem(
           label: "Noto'g'ri",
-          value: "${totalQuestions - correctAnswers}",
+          value: '${totalQuestions - correctAnswers}',
           icon: Icons.cancel_rounded,
         ),
         _StatItem(
-          label: "Foiz",
-          value: "${(correctAnswers / totalQuestions * 100).toInt()}%",
+          label: 'Foiz',
+          value: '${(correctAnswers / totalQuestions * 100).toInt()}%',
           icon: Icons.percent_rounded,
         ),
       ],
@@ -902,6 +940,7 @@ void showListeningSuccess(
   required int score,
   required int total,
   required VoidCallback onContinue,
+  VoidCallback? onPremiumCoach, // ✅ FIX: AI Murabbiy tugmasi
 }) {
   Navigator.of(context).push(
     SozonaSuccessOverlay.route(
@@ -909,6 +948,7 @@ void showListeningSuccess(
       total: total,
       module: SozonaModule.listening,
       onContinue: onContinue,
+      onPremiumCoach: onPremiumCoach, // ✅
     ),
   );
 }
@@ -929,16 +969,16 @@ void showSpeakingSuccess(
       subtitle: feedback,
       stats: [
         _StatItem(
-          label: "Ball",
-          value: "$pronunciationScore",
+          label: 'Ball',
+          value: '$pronunciationScore',
           icon: Icons.mic_rounded,
         ),
         _StatItem(
-          label: "Daraja",
+          label: 'Daraja',
           value: pronunciationScore >= 80
               ? "A'lo"
               : pronunciationScore >= 60
-                  ? "Yaxshi"
+                  ? 'Yaxshi'
                   : "O'rta",
           icon: Icons.bar_chart_rounded,
         ),

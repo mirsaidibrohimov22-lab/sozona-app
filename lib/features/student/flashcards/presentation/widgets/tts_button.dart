@@ -9,7 +9,7 @@ class TtsButton extends StatefulWidget {
   const TtsButton({
     super.key,
     required this.text,
-    this.language = 'de-DE',
+    this.language = 'en-US', // ✅ FIX: default ingliz (eng ko'p foydalanuvchi)
     this.size = 24,
   });
   @override

@@ -28,6 +28,7 @@ abstract class ContentGeneratorRepository {
     required String topic,
     required int questionCount,
     String difficulty = 'medium',
+    String grammar = '',
   });
 
   /// Flashcard to'plami yaratish

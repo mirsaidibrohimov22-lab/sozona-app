@@ -1,21 +1,18 @@
 // lib/features/student/quiz/presentation/screens/quiz_play_screen.dart
-// So'zona — Quiz o'ynash ekrani
-// ✅ v3.0: Widget signature'lar to'g'rilandi (McqWidget, TrueFalseWidget, FillBlankWidget)
-// ✅ v3.0: O'qituvchi quizlari uchun har bir savolga 30 soniya countdown
-// ✅ v3.0: Vaqt tugaganda savol avtomatik o'tadi
+// So'zona — Quiz o'ynash ekrani (yangi dizayn)
+// ✅ v3.0: Widget signature'lar to'g'rilandi
+// ✅ v3.0: O'qituvchi quizlari uchun 30s countdown
 
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/core/router/route_names.dart';
 import 'package:my_first_app/core/widgets/app_button.dart';
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/student/quiz/domain/entities/quiz.dart';
 import 'package:my_first_app/features/student/quiz/presentation/providers/quiz_provider.dart';
-import 'package:my_first_app/features/student/quiz/presentation/widgets/quiz_progress_bar.dart';
 import 'package:my_first_app/features/student/quiz/presentation/widgets/mcq_widget.dart';
 import 'package:my_first_app/features/student/quiz/presentation/widgets/true_false_widget.dart';
 import 'package:my_first_app/features/student/quiz/presentation/widgets/fill_blank_widget.dart';
@@ -29,10 +26,7 @@ class QuizPlayScreen extends ConsumerStatefulWidget {
 
 class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
     with SingleTickerProviderStateMixin {
-  // ─── Global timer (jami vaqt) ───
   Timer? _globalTimer;
-
-  // ─── Per-question countdown (o'qituvchi quizlari) ───
   Timer? _questionTimer;
   int _questionSecondsLeft = 30;
   bool _isTeacherQuiz = false;
@@ -40,7 +34,6 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
 
   late AnimationController _timerAnim;
 
-  // ─── Savol holati ───
   String? _selectedAnswer;
   bool _answered = false;
 
@@ -143,8 +136,21 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
     _timerAnim.stop();
     final user = ref.read(authNotifierProvider).user;
     if (user == null) return;
+
+    // ✅ FIX: Natija kechikmasligi uchun — submitQuiz ni kutib,
+    // xato bo'lsa ham result ekraniga o'tamiz (lastAttempt null bo'lsa
+    // result ekrani "Quizlarga qaytish" tugmasini ko'rsatadi)
     await ref.read(quizProvider.notifier).submitQuiz(userId: user.id);
     if (!mounted) return;
+
+    // ✅ FIX: Natija chiqmasligi — agar submit xato bo'lsa,
+    // lokal attempt yaratib, result ekranini ko'rsatamiz
+    final state = ref.read(quizProvider);
+    if (state.lastAttempt == null && state.activeQuiz != null) {
+      // Server xatosi — lokal hisoblash
+      ref.read(quizProvider.notifier).computeLocalResult(userId: user.id);
+    }
+
     context.pushReplacement(RoutePaths.quizResult);
   }
 
@@ -169,106 +175,225 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
       );
     }
 
+    final progressFraction =
+        (state.currentQuestionIndex + 1) / quiz.questions.length;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(quiz.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => _showExitDialog(context),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                '${state.secondsElapsed ~/ 60}:${(state.secondsElapsed % 60).toString().padLeft(2, '0')}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+      backgroundColor: const Color(0xFFF5F6FF),
+      body: Column(
+        children: [
+          // ── Gradient header ──
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  children: [
+                    // Top row
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _showExitDialog(context),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.close,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            quiz.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        // Timer
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.timer_outlined,
+                                  color: Colors.white70, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${state.secondsElapsed ~/ 60}:${(state.secondsElapsed % 60).toString().padLeft(2, '0')}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Progress bar
+                    Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Savol ${state.currentQuestionIndex + 1}',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
+                            ),
+                            Text(
+                              '${quiz.questions.length} ta',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progressFraction,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF2DD4BF)),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          QuizProgressBar(
-            current: state.currentQuestionIndex + 1,
-            total: quiz.questions.length,
-          ),
 
-          // O'qituvchi quizi: 30s countdown
+          // O'qituvchi quizi countdown
           if (_isTeacherQuiz) _buildCountdownBar(),
 
+          // ── Savol ──
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Savol raqami
-                  Row(
-                    children: [
-                      Text(
-                        'Savol ${state.currentQuestionIndex + 1} / ${quiz.questions.length}',
-                        style:
-                            Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                      const Spacer(),
-                      if (quiz.creatorType == 'teacher')
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            "O'qituvchi",
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w500),
-                          ),
+                  // O'qituvchi badge
+                  if (quiz.creatorType == 'teacher')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4FC3F7), Color(0xFF1976D2)],
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "O'qituvchi quizi",
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
 
-                  // Savol matni
-                  Text(
-                    question.question,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
+                  // Savol kartasi
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              const Color(0xFF6C63FF).withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                          color: const Color(0xFFEEEDFF), width: 1.5),
+                    ),
+                    child: Text(
+                      question.question,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
+                        color: Color(0xFF1A1D2E),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // ✅ To'g'rilangan widget chaqiruvlari
+                  const SizedBox(height: 20),
+
+                  // Javob widgeti
                   _buildQuestionWidget(question),
 
                   const SizedBox(height: 24),
 
-                  // Keyingi tugma (javob berilgandan keyin)
+                  // Keyingi tugma
                   if (_answered)
-                    SizedBox(
+                    Container(
                       width: double.infinity,
-                      height: 52,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
                       child: ElevatedButton(
                         onPressed: _onNext,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                              borderRadius: BorderRadius.circular(16)),
                         ),
                         child: Text(
-                          state.isLastQuestion ? 'Yakunlash' : 'Keyingi',
+                          state.isLastQuestion ? '🏆 Yakunlash' : 'Keyingi →',
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -281,7 +406,6 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
     );
   }
 
-  // ✅ FIX: Har bir widget o'zining haqiqiy signature'i bilan chaqiriladi
   Widget _buildQuestionWidget(QuizQuestion question) {
     switch (question.type) {
       case QuestionType.mcq:
@@ -289,20 +413,16 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
         return McqWidget(
           options: question.options,
           selectedAnswer: _selectedAnswer,
-          // Javob berilgandan keyin to'g'ri javobni ko'rsatish
           correctAnswer: _answered ? question.correctAnswer : null,
           onAnswer: _onAnswer,
-          // ✅ FIX: questionId shuffle uchun — har savol o'z tartibida
           questionId: question.id,
         );
-
       case QuestionType.trueFalse:
         return TrueFalseWidget(
           selectedAnswer: _selectedAnswer,
           correctAnswer: _answered ? question.correctAnswer : null,
           onAnswer: _onAnswer,
         );
-
       case QuestionType.fillBlank:
         return FillBlankWidget(
           isAnswered: _answered,
@@ -311,15 +431,14 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
     }
   }
 
-  // ─── 30 soniya countdown widget ───
   Widget _buildCountdownBar() {
     final fraction = _questionSecondsLeft / _questionTimeLimit;
     final isUrgent = _questionSecondsLeft <= 10;
-    final color = isUrgent ? Colors.red : Colors.orange;
+    final color = isUrgent ? const Color(0xFFFF5252) : const Color(0xFFFFB347);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: color.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: color.withValues(alpha: 0.06),
       child: Row(
         children: [
           SizedBox(
@@ -411,7 +530,6 @@ class _QuizPlayScreenState extends ConsumerState<QuizPlayScreen>
   }
 }
 
-// ─── Circular Timer Painter ───
 class _CircularTimerPainter extends CustomPainter {
   final double fraction;
   final Color color;

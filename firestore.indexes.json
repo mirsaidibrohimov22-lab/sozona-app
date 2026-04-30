@@ -1,15 +1,57 @@
 {
     "indexes": [
         {
-            "collectionGroup": "classes",
+            "collectionGroup": "activities",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "teacherId",
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "isActive",
+                    "fieldPath": "timestamp",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "activities",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "activities",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "skillType",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "attempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
@@ -19,19 +61,81 @@
             ]
         },
         {
-            "collectionGroup": "folders",
+            "collectionGroup": "attempts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "classId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "content",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "creatorId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "content",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "createdBy",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "content",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "content",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "classId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "publishedAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "flashcards",
             "queryScope": "COLLECTION",
             "fields": [
                 {
                     "fieldPath": "userId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "isDeleted",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "sortOrder",
                     "order": "ASCENDING"
                 },
                 {
@@ -45,11 +149,39 @@
             "queryScope": "COLLECTION",
             "fields": [
                 {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
                     "fieldPath": "folderId",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "isDeleted",
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "flashcards",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "nextReview",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "folders",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
@@ -62,42 +194,6 @@
             "collectionGroup": "listening_exercises",
             "queryScope": "COLLECTION",
             "fields": [
-                {
-                    "fieldPath": "isActive",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "listening_exercises",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "isActive",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "language",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "listening_exercises",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "isActive",
-                    "order": "ASCENDING"
-                },
                 {
                     "fieldPath": "language",
                     "order": "ASCENDING"
@@ -113,29 +209,11 @@
             ]
         },
         {
-            "collectionGroup": "weakItems",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "updatedAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "content",
+            "collectionGroup": "listening_results",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "creatorId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "type",
+                    "fieldPath": "studentId",
                     "order": "ASCENDING"
                 },
                 {
@@ -145,11 +223,11 @@
             ]
         },
         {
-            "collectionGroup": "content",
+            "collectionGroup": "notifications",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "isPublished",
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
@@ -159,33 +237,43 @@
             ]
         },
         {
-            "collectionGroup": "content",
+            "collectionGroup": "notifications",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "type",
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "language",
+                    "fieldPath": "isRead",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "isPublished",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "publishedAt",
+                    "fieldPath": "createdAt",
                     "order": "DESCENDING"
                 }
             ]
         },
         {
-            "collectionGroup": "content",
+            "collectionGroup": "dailyPlans",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "isPublished",
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "date",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "publishSchedules",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "teacherId",
                     "order": "ASCENDING"
                 },
                 {
@@ -195,33 +283,67 @@
             ]
         },
         {
-            "collectionGroup": "content",
+            "collectionGroup": "publishSchedules",
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "type",
+                    "fieldPath": "status",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "language",
+                    "fieldPath": "scheduledAt",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "classes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "joinCode",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "isPublished",
+                    "fieldPath": "isActive",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "classes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "teacherId",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "classId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "publishedAt",
+                    "fieldPath": "createdAt",
                     "order": "DESCENDING"
                 }
             ]
         },
         {
-            "collectionGroup": "attempts",
+            "collectionGroup": "users",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "isPremium",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "premiumSource",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "premiumExpiresAt",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "sessions",
             "queryScope": "COLLECTION",
             "fields": [
                 {
@@ -235,7 +357,7 @@
             ]
         },
         {
-            "collectionGroup": "attempts",
+            "collectionGroup": "mistakes",
             "queryScope": "COLLECTION",
             "fields": [
                 {
@@ -243,17 +365,17 @@
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "contentType",
+                    "fieldPath": "reviewed",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "createdAt",
+                    "fieldPath": "timestamp",
                     "order": "DESCENDING"
                 }
             ]
         },
         {
-            "collectionGroup": "activities",
+            "collectionGroup": "mistakes",
             "queryScope": "COLLECTION",
             "fields": [
                 {
@@ -261,44 +383,48 @@
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "content",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "creatorId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "content",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "type",
+                    "fieldPath": "reviewed",
                     "order": "ASCENDING"
                 },
                 {
                     "fieldPath": "language",
                     "order": "ASCENDING"
-                },
+                }
+            ]
+        },
+        {
+            "collectionGroup": "scheduled_reviews",
+            "queryScope": "COLLECTION",
+            "fields": [
                 {
-                    "fieldPath": "isPublished",
+                    "fieldPath": "userId",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
+                    "fieldPath": "isCompleted",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "scheduledFor",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "scheduled_reviews",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "userId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "contentId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "isCompleted",
+                    "order": "ASCENDING"
                 }
             ]
         },
@@ -307,20 +433,36 @@
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "type",
+                    "fieldPath": "language",
                     "order": "ASCENDING"
                 },
+                {
+                    "fieldPath": "grammar",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "content",
+            "queryScope": "COLLECTION",
+            "fields": [
                 {
                     "fieldPath": "language",
                     "order": "ASCENDING"
                 },
                 {
-                    "fieldPath": "classId",
+                    "fieldPath": "level",
                     "order": "ASCENDING"
-                },
+                }
+            ]
+        },
+        {
+            "collectionGroup": "users",
+            "queryScope": "COLLECTION",
+            "fields": [
                 {
-                    "fieldPath": "isPublished",
-                    "order": "ASCENDING"
+                    "fieldPath": "referralValidCount",
+                    "order": "DESCENDING"
                 },
                 {
                     "fieldPath": "createdAt",

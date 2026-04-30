@@ -59,4 +59,7 @@ class FirestorePaths {
 
   // ─── Listening results ───
   static const String listeningResults = 'listening_results';
+
+  // ✅ YANGI: Referral tizimi
+  static const String referralCodes = 'referral_codes';
 }

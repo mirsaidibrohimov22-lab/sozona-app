@@ -10,6 +10,7 @@ abstract class ProfileRepository {
     required String userId,
     String? fullName,
     String? avatarUrl,
+    String? avatarVisibility,
     String? level,
     String? preferredLanguage,
     String? uiLanguage,
@@ -27,6 +28,8 @@ abstract class ProfileRepository {
     required String userId,
     required String filePath,
   });
+  // ✅ YANGI: Rasmni o'chirish
+  Future<Either<Failure, void>> deleteAvatar({required String userId});
   Future<Either<Failure, void>> requestDataExport(String userId);
   Future<Either<Failure, void>> requestAccountDelete(String userId);
 }

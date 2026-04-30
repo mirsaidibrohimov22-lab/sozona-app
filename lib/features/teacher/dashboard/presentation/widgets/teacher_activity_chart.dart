@@ -30,9 +30,11 @@ class _TeacherActivityChartState extends ConsumerState<TeacherActivityChart> {
   int _metricIndex = 0;
 
   static const _metrics = [
-    _MetricInfo('Faol o\'quvchilar', AppColors.primary, Icons.people_rounded),
+    _MetricInfo('Faol o\'quvchilar', Color.fromARGB(255, 83, 78, 173),
+        Icons.people_rounded),
     _MetricInfo('Jami mashqlar', AppColors.secondary, Icons.quiz_rounded),
-    _MetricInfo('O\'rtacha ball', AppColors.success, Icons.star_rounded),
+    _MetricInfo(
+        'O\'rtacha ball', Color.fromARGB(255, 130, 8, 124), Icons.star_rounded),
   ];
 
   @override

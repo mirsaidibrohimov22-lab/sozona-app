@@ -276,6 +276,52 @@ class QuizNotifier extends StateNotifier<QuizState> {
     );
   }
 
+  // ✅ FIX: Server xatosi bo'lganda lokal natija hisoblash
+  void computeLocalResult({required String userId}) {
+    final quiz = state.activeQuiz;
+    if (quiz == null) return;
+
+    final answers = quiz.questions.map((q) {
+      final userAns = state.userAnswers[q.id] ?? '';
+      final isCorrect =
+          userAns.toLowerCase().trim() == q.correctAnswer.toLowerCase().trim();
+      return QuizAnswer(
+        questionId: q.id,
+        userAnswer: userAns,
+        correctAnswer: q.correctAnswer,
+        isCorrect: isCorrect,
+        timeSpentSeconds: state.secondsElapsed ~/ quiz.questions.length,
+        points: isCorrect ? q.points : 0,
+      );
+    }).toList();
+
+    final score = answers.fold(0, (sum, a) => sum + a.points);
+    final maxScore = quiz.totalPoints;
+    final passed = score >= (maxScore * 0.6).round();
+
+    final attempt = QuizAttempt(
+      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+      quizId: quiz.id,
+      userId: userId,
+      quizTitle: quiz.title,
+      answers: answers,
+      score: score,
+      maxScore: maxScore,
+      percentage: maxScore > 0 ? (score / maxScore) * 100 : 0,
+      passed: passed,
+      timeSpentSeconds: state.secondsElapsed,
+      createdAt: DateTime.now(),
+      completedAt: DateTime.now(),
+      xpEarned: passed ? 50 : 20,
+    );
+
+    state = state.copyWith(
+      lastAttempt: attempt,
+      activeQuiz: null,
+      isSubmitting: false,
+    );
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // Adaptive AI Quiz
   // ═══════════════════════════════════════════════════════════════
@@ -405,6 +451,8 @@ class QuizNotifier extends StateNotifier<QuizState> {
         'weakItems': wrongItems,
         'strongItems': <String>[],
         'contentId': quiz.id,
+        if (quiz.classId != null && quiz.classId!.isNotEmpty)
+          'classId': quiz.classId, // ✅ YANGI: Teacher analytics uchun
       });
     } catch (_) {
       // Activity saqlash sessiyani buzmaydi

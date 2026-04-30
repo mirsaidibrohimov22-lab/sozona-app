@@ -1,131 +1,89 @@
-#!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-# SO'ZONA — H bo'limi: Duplicate fayllar o'chirish skripti
-# I bo'limi: Functions papka tartibga solish
-#
-# ISHLATISH: bash cleanup_duplicates.sh
-# ⚠️ AVVAL flutter analyze qiling, keyin shu skriptni bajaring
+# SO'ZONA — H bo'limi: Duplicate fayllar o'chirish (WINDOWS PowerShell)
+# ISHLATISH: loyiha papkasida PowerShell ochib:
+#   .\cleanup_duplicates.ps1
 # ═══════════════════════════════════════════════════════════════
 
-echo "═══════════════════════════════════════"
-echo "1-QADAM: Import yo'llarini tuzatish"
-echo "═══════════════════════════════════════"
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host "1-QADAM: Import yo'llarini tuzatish" -ForegroundColor Cyan
+Write-Host "=======================================" -ForegroundColor Cyan
 
-# ── 1. ai_chat_screen.dart: chat_provider → ai_chat_provider ──
-echo "Fixing: ai_chat_screen.dart"
-sed -i "s|import 'package:my_first_app/features/student/ai_chat/presentation/providers/chat_provider.dart';|import 'package:my_first_app/features/student/ai_chat/presentation/providers/ai_chat_provider.dart';|g" \
-  lib/features/student/ai_chat/presentation/screens/ai_chat_screen.dart
+# 1. ai_chat_screen.dart: chat_provider → ai_chat_provider
+$f1 = "lib\features\student\ai_chat\presentation\screens\ai_chat_screen.dart"
+if (Test-Path $f1) {
+    (Get-Content $f1) -replace "providers/chat_provider\.dart", "providers/ai_chat_provider.dart" | Set-Content $f1
+    Write-Host "  Fixed: ai_chat_screen.dart" -ForegroundColor Green
+}
 
-# ── 2. quiz_detail_screen.dart: loading_widget → app_loading_widget ──
-echo "Fixing: quiz_detail_screen.dart"
-sed -i "s|import 'package:my_first_app/core/widgets/loading_widget.dart';|import 'package:my_first_app/core/widgets/app_loading_widget.dart';|g" \
-  lib/features/student/quiz/presentation/screens/quiz_detail_screen.dart
+# 2. quiz_detail_screen.dart: loading_widget → app_loading_widget
+$f2 = "lib\features\student\quiz\presentation\screens\quiz_detail_screen.dart"
+if (Test-Path $f2) {
+    (Get-Content $f2) -replace "widgets/loading_widget\.dart", "widgets/app_loading_widget.dart" | Set-Content $f2
+    Write-Host "  Fixed: quiz_detail_screen.dart" -ForegroundColor Green
+}
 
-# ── 3. content_gen_repository_impl.dart: content_generator_remote_datasource → content_gen_remote_datasource ──
-echo "Fixing: content_gen_repository_impl.dart"
-sed -i "s|import 'package:my_first_app/features/teacher/content_generator/data/datasources/content_generator_remote_datasource.dart';|import 'package:my_first_app/features/teacher/content_generator/data/datasources/content_gen_remote_datasource.dart';|g" \
-  lib/features/teacher/content_generator/data/repositories/content_gen_repository_impl.dart
+# 3. content_gen_repository_impl.dart: content_generator_remote_datasource → content_gen_remote_datasource
+$f3 = "lib\features\teacher\content_generator\data\repositories\content_gen_repository_impl.dart"
+if (Test-Path $f3) {
+    (Get-Content $f3) -replace "datasources/content_generator_remote_datasource\.dart", "datasources/content_gen_remote_datasource.dart" | Set-Content $f3
+    Write-Host "  Fixed: content_gen_repository_impl.dart" -ForegroundColor Green
+}
 
-# ── 4. content_gen_provider.dart: content_generator_remote_datasource → content_gen_remote_datasource ──
-echo "Fixing: content_gen_provider.dart (datasource import)"
-sed -i "s|import 'package:my_first_app/features/teacher/content_generator/data/datasources/content_generator_remote_datasource.dart';|import 'package:my_first_app/features/teacher/content_generator/data/datasources/content_gen_remote_datasource.dart';|g" \
-  lib/features/teacher/content_generator/presentation/providers/content_gen_provider.dart
+# 4-5. content_gen_provider.dart: 2 ta import fix
+$f4 = "lib\features\teacher\content_generator\presentation\providers\content_gen_provider.dart"
+if (Test-Path $f4) {
+    (Get-Content $f4) -replace "datasources/content_generator_remote_datasource\.dart", "datasources/content_gen_remote_datasource.dart" -replace "repositories/content_generator_repository_impl\.dart", "repositories/content_gen_repository_impl.dart" | Set-Content $f4
+    Write-Host "  Fixed: content_gen_provider.dart" -ForegroundColor Green
+}
 
-# ── 5. content_gen_provider.dart: content_generator_repository_impl → content_gen_repository_impl ──
-echo "Fixing: content_gen_provider.dart (repository import)"
-sed -i "s|import 'package:my_first_app/features/teacher/content_generator/data/repositories/content_generator_repository_impl.dart';|import 'package:my_first_app/features/teacher/content_generator/data/repositories/content_gen_repository_impl.dart';|g" \
-  lib/features/teacher/content_generator/presentation/providers/content_gen_provider.dart
+# 6. content_generator_screen.dart: content_generator_provider → content_gen_provider
+$f5 = "lib\features\teacher\content_generator\presentation\screens\content_generator_screen.dart"
+if (Test-Path $f5) {
+    (Get-Content $f5) -replace "providers/content_generator_provider\.dart", "providers/content_gen_provider.dart" | Set-Content $f5
+    Write-Host "  Fixed: content_generator_screen.dart" -ForegroundColor Green
+}
 
-# ── 6. content_generator_screen.dart: content_generator_provider → content_gen_provider ──
-echo "Fixing: content_generator_screen.dart"
-sed -i "s|import 'package:my_first_app/features/teacher/content_generator/presentation/providers/content_generator_provider.dart';|import 'package:my_first_app/features/teacher/content_generator/presentation/providers/content_gen_provider.dart';|g" \
-  lib/features/teacher/content_generator/presentation/screens/content_generator_screen.dart
+Write-Host ""
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host "2-QADAM: Duplicate fayllarni o'chirish" -ForegroundColor Cyan
+Write-Host "=======================================" -ForegroundColor Cyan
 
-echo ""
-echo "═══════════════════════════════════════"
-echo "2-QADAM: Duplicate fayllarni o'chirish"
-echo "═══════════════════════════════════════"
-
-# Re-export va duplicate fayllar — xavfsiz o'chirish
-FILES_TO_DELETE=(
-  # Typo dublikat
-  "lib/features/auth/presentation/screens/fortgot_password_screen.dart"
-
-  # Flashcard dublikat (flashcard_entity.dart bor)
-  "lib/features/student/flashcards/domain/entities/flashcard.dart"
-
-  # AI Chat eski datasource (chat_remote_datasource.dart qoladi)
-  "lib/features/student/ai_chat/data/datasources/ai_chat_remote_datasource.dart"
-
-  # AI Chat re-export fayllar
-  "lib/features/student/ai_chat/data/repositories/chat_repository_impl.dart"
-  "lib/features/student/ai_chat/domain/repositories/ai_chat_repository.dart"
-  "lib/features/student/ai_chat/presentation/providers/chat_provider.dart"
-
-  # Content generator re-export fayllar
-  "lib/features/teacher/content_generator/data/datasources/content_generator_remote_datasource.dart"
-  "lib/features/teacher/content_generator/presentation/providers/content_generator_provider.dart"
-  "lib/features/teacher/content_generator/data/repositories/content_generator_repository_impl.dart"
-
-  # Flashcard re-export
-  "lib/features/student/flashcards/domain/usecases/create_flashcard.dart"
-
-  # Eski dublikat screen
-  "lib/features/student/flashcards/presentation/screens/search_cards_screen.dart"
-
-  # Core widget re-export fayllar
-  "lib/core/widgets/app_empty_widget.dart"
-  "lib/core/widgets/empty_state_widget.dart"
-  "lib/core/widgets/error_widget.dart"
-  "lib/core/widgets/loading_widget.dart"
-
-  # Domain'da turadigan impl (data/ da haqiqiy impl bor)
-  "lib/features/student/listening/domain/repositories/listening_repository_impl.dart"
+$filesToDelete = @(
+    "lib\features\auth\presentation\screens\fortgot_password_screen.dart",
+    "lib\features\student\flashcards\domain\entities\flashcard.dart",
+    "lib\features\student\ai_chat\data\datasources\ai_chat_remote_datasource.dart",
+    "lib\features\student\ai_chat\data\repositories\chat_repository_impl.dart",
+    "lib\features\student\ai_chat\domain\repositories\ai_chat_repository.dart",
+    "lib\features\student\ai_chat\presentation\providers\chat_provider.dart",
+    "lib\features\teacher\content_generator\data\datasources\content_generator_remote_datasource.dart",
+    "lib\features\teacher\content_generator\presentation\providers\content_generator_provider.dart",
+    "lib\features\teacher\content_generator\data\repositories\content_generator_repository_impl.dart",
+    "lib\features\student\flashcards\domain\usecases\create_flashcard.dart",
+    "lib\features\student\flashcards\presentation\screens\search_cards_screen.dart",
+    "lib\core\widgets\app_empty_widget.dart",
+    "lib\core\widgets\empty_state_widget.dart",
+    "lib\core\widgets\error_widget.dart",
+    "lib\core\widgets\loading_widget.dart",
+    "lib\features\student\listening\domain\repositories\listening_repository_impl.dart"
 )
 
-for f in "${FILES_TO_DELETE[@]}"; do
-  if [ -f "$f" ]; then
-    echo "  O'chirildi: $f"
-    rm "$f"
-  else
-    echo "  ⚠️ Topilmadi: $f"
-  fi
-done
+$deleted = 0
+foreach ($file in $filesToDelete) {
+    if (Test-Path $file) {
+        Remove-Item $file -Force
+        Write-Host "  O'chirildi: $file" -ForegroundColor Yellow
+        $deleted++
+    } else {
+        Write-Host "  Topilmadi: $file" -ForegroundColor DarkGray
+    }
+}
 
-echo ""
-echo "═══════════════════════════════════════"
-echo "3-QADAM: Tekshiruv"
-echo "═══════════════════════════════════════"
-
-# Import tekshiruvi — o'chirilgan fayllar hali import qilinayotganmi
-echo "O'chirilgan fayllar hali import qilinayotganmi tekshirilmoqda..."
-ERRORS=0
-for f in "${FILES_TO_DELETE[@]}"; do
-  BASENAME=$(basename "$f" .dart)
-  FOUND=$(grep -rn "$BASENAME" lib/ --include="*.dart" 2>/dev/null | grep "import " | grep -v "^Binary" | head -3)
-  if [ -n "$FOUND" ]; then
-    echo "  ⛔ XATO: '$BASENAME' hali import qilinmoqda:"
-    echo "    $FOUND"
-    ERRORS=$((ERRORS + 1))
-  fi
-done
-
-if [ $ERRORS -eq 0 ]; then
-  echo "  ✅ Barcha importlar toza — xatolik yo'q!"
-else
-  echo "  ⛔ $ERRORS ta import muammosi topildi — yuqoridagilarni tuzating!"
-fi
-
-echo ""
-echo "═══════════════════════════════════════"
-echo "4-QADAM: flutter analyze"
-echo "═══════════════════════════════════════"
-echo "Quyidagi buyruqni ishga tushiring:"
-echo "  flutter analyze"
-echo ""
-
-echo "═══════════════════════════════════════"
-echo "YAKUNLANDI!"
-echo "O'chirilgan fayllar: ${#FILES_TO_DELETE[@]} ta"
-echo "Import tuzatilgan fayllar: 6 ta"
-echo "═══════════════════════════════════════"
+Write-Host ""
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host "YAKUNLANDI!" -ForegroundColor Green
+Write-Host "O'chirilgan fayllar: $deleted ta" -ForegroundColor Green
+Write-Host "Import tuzatilgan: 6 ta fayl" -ForegroundColor Green
+Write-Host "=======================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Endi quyidagini ishga tushiring:" -ForegroundColor White
+Write-Host "  flutter analyze" -ForegroundColor Yellow

@@ -73,7 +73,7 @@ class TeacherAnalyticsScreen extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               _StatCard(
-                'Faol bugun',
+                'Faol (7 kun)',
                 '${analytics.activeStudents}',
                 Icons.bolt,
                 Colors.orange,

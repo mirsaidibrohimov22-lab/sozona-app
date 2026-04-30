@@ -104,6 +104,17 @@ class StorageService {
     LoggerService.info('Secure storage cleared');
   }
 
+  /// Barcha maxfiy kalitlar nomini olish.
+  /// Debug uchun — OpenAI kalit nomini aniqlashda ishlatiladi.
+  Future<List<String>> getAllSecureKeys() async {
+    try {
+      final all = await _secureStorage.readAll();
+      return all.keys.toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
   // ═══════════════════════════════════
   // 📋 CONVENIENCE METHODS
   // ═══════════════════════════════════

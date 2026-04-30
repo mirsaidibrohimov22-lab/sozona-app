@@ -207,6 +207,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
             status: AuthStatus.authenticated,
             user: user,
           );
+          // ✅ FIX: Cache-dan tez yuklab, fonda serverdan yangilaymiz
+          // Sabab: cache'da eski isPremium=false bo'lishi mumkin
+          // (promo kod yoki admin tomonidan premium faollashtirilgan bo'lsa)
+          // Bu UI ni blokirovka qilmaydi — fon da ishlaydi
+          // ignore: discarded_futures
+          refreshUserFromServer();
         }
       },
     );
@@ -230,7 +236,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           failure: failure,
         );
       },
-      (user) {
+      (user) async {
         state = state.copyWith(
           isLoading: false,
           status: user.isProfileComplete
@@ -260,6 +266,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       },
       (verificationId) {
         state = state.copyWith(isLoading: false);
+        // Avtomatik tasdiqlash bo'lgan bo'lsa — auth holatini yangilaymiz
+        if (verificationId == 'auto_verified') {
+          // ignore: discarded_futures
+          checkAuthStatus();
+          return null; // OTP ekraniga o'tmaymiz
+        }
         return verificationId;
       },
     );
@@ -323,12 +335,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
           failure: failure,
         );
       },
-      (user) {
+      (user) async {
         state = state.copyWith(
           isLoading: false,
           status: AuthStatus.profileIncomplete,
           user: user,
         );
+      },
+    );
+  }
+
+  /// ✅ FIX: Server dan majburiy yangilash — premium, daraja o'zgargandan keyin
+  /// redeemPromoCode, updateProfile dan keyin shu metodni chaqiring
+  Future<void> refreshUserFromServer() async {
+    _logger.d('Server dan foydalanuvchi yangilanmoqda...');
+    final result = await _repository.getCurrentUser(forceServer: true);
+    result.fold(
+      (failure) {
+        _logger.w('Refresh xatolik: ${failure.message}');
+      },
+      (user) {
+        if (user != null) {
+          state = state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user,
+          );
+          _logger.d('✅ Foydalanuvchi yangilandi: isPremium=${user.isPremium}');
+        }
       },
     );
   }

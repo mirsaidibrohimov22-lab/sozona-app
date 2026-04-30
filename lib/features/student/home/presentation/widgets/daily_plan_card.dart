@@ -23,8 +23,9 @@ class DailyPlanCard extends StatelessWidget {
       borderColor: dailyPlan.isCompleted
           ? AppColors.success.withValues(alpha: 0.3)
           : AppColors.bgTertiary,
-      backgroundColor:
-          dailyPlan.isCompleted ? AppColors.success.withValues(alpha: 0.05) : null,
+      backgroundColor: dailyPlan.isCompleted
+          ? AppColors.success.withValues(alpha: 0.05)
+          : null,
       padding: const EdgeInsets.all(AppSizes.spacingMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

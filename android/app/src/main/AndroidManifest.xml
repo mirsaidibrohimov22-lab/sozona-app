@@ -1,8 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <!-- ✅ Internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    
+    <!-- ✅ Google Play Billing -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
     
     <!-- ✅ Notification -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
@@ -15,12 +19,21 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- ✅ Voice Assistant — mikrofon va fon servisi -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
     
     <application
         android:label="So'zona"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
+        <!-- ✅ FIX: usesCleartextTraffic="true" olib tashlandi
+             Sabab: targetSdk=34 da Play Market xavfsizlik tekshiruvidan o'tolmaydi.
+             Firebase, Firestore, Cloud Functions — hammasi HTTPS ishlatadi.
+             Agar HTTP kerak bo'lsa, network_security_config.xml orqali aniq domenlar uchun ruxsat bering. -->
         
         <activity
             android:name=".MainActivity"
@@ -56,6 +69,12 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- ✅ Voice Assistant — flutter_foreground_task servisi -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundTaskService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
         
         <meta-data
             android:name="flutterEmbedding"

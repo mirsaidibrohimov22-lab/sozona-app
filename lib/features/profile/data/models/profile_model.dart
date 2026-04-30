@@ -19,6 +19,7 @@ class UserProfileModel extends UserProfile {
     super.currentStreak,
     super.longestStreak,
     super.totalXp,
+    super.badges,
     super.notifications,
     super.preferences,
     super.lastActiveDate,
@@ -37,7 +38,11 @@ class UserProfileModel extends UserProfile {
 
     return UserProfileModel(
       id: id,
-      fullName: d['fullName'] as String? ?? '',
+      // ✅ FIX: UserModel 'displayName' yozadi, lekin profile 'fullName' o'qiydi.
+      // Ikkalasiga ham fallback — qaysi maydon bo'lsa o'shani ishlatadi.
+      fullName: (d['fullName'] as String?)?.isNotEmpty == true
+          ? d['fullName'] as String
+          : (d['displayName'] as String?) ?? '',
       email: d['email'] as String?,
       phone: d['phone'] as String?,
       role: d['role'] as String? ?? 'student',
@@ -49,6 +54,10 @@ class UserProfileModel extends UserProfile {
       currentStreak: d['currentStreak'] as int? ?? 0,
       longestStreak: d['longestStreak'] as int? ?? 0,
       totalXp: d['totalXp'] as int? ?? 0,
+      // ✅ FIX: badges — users/{uid}/badges dan o'qiladi (giveStreakReward shu yerga yozadi)
+      badges:
+          (d['badges'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+              const [],
       notifications: UserNotificationSettings(
         microSession: notif['microSession'] as bool? ?? true,
         streak: notif['streak'] as bool? ?? true,
@@ -111,6 +120,7 @@ class UserProfileModel extends UserProfile {
         currentStreak: e.currentStreak,
         longestStreak: e.longestStreak,
         totalXp: e.totalXp,
+        badges: e.badges,
         notifications: e.notifications,
         preferences: e.preferences,
         lastActiveDate: e.lastActiveDate,

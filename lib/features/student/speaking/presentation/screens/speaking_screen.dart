@@ -32,6 +32,8 @@ import 'package:my_first_app/core/widgets/sozana_loading_animation.dart';
 import 'package:my_first_app/features/student/speaking/data/models/speaking_model.dart';
 import 'package:my_first_app/features/student/speaking/domain/entities/speaking_exercise.dart';
 import 'package:my_first_app/features/student/speaking/presentation/providers/speaking_provider.dart';
+import 'package:my_first_app/features/premium/presentation/providers/premium_provider.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_coach_screen.dart';
 
 class SpeakingScreen extends ConsumerStatefulWidget {
   final String exerciseId;
@@ -203,8 +205,47 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
   }
 
   void _onStatus(String s) {
-    if ((s == 'done' || s == 'notListening') && _isRecording) {
-      _stopRecording();
+    // ✅ FIX: 'done' yoki 'notListening' kelganda qayta boshlaymiz
+    // Faqat foydalanuvchi o'zi to'xtatgandagina (_isRecording = false) to'xtaydi
+    if ((s == 'done' || s == 'notListening') && _isRecording && mounted) {
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (_isRecording && mounted) {
+          _restartListening();
+        }
+      });
+    }
+  }
+
+  Future<void> _restartListening() async {
+    if (!_isRecording || !mounted) return;
+    final session = ref.read(speakingSessionProvider);
+    final locale = (session?.exercise.language == 'de') ? 'de_DE' : 'en_US';
+    try {
+      await _speech.listen(
+        onResult: (SpeechRecognitionResult r) {
+          if (!mounted) return;
+          setState(() {
+            if (r.finalResult) {
+              if (r.recognizedWords.isNotEmpty) {
+                _transcript = (_transcript.isEmpty)
+                    ? r.recognizedWords
+                    : '$_transcript ${r.recognizedWords}';
+              }
+              _partialTranscript = '';
+            } else {
+              _partialTranscript = r.recognizedWords;
+            }
+          });
+        },
+        localeId: locale,
+        listenOptions: SpeechListenOptions(
+          listenMode: ListenMode.dictation,
+          cancelOnError: false,
+        ),
+        pauseFor: const Duration(seconds: 120), // ✅ FIX: uzoq kutadi
+      );
+    } catch (_) {
+      // Xato bo'lsa qayta urinib ko'rmaymiz — foydalanuvchi to'xtatishi kerak
     }
   }
 
@@ -221,9 +262,10 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
       _recordingSeconds = 0;
     });
     _pulseController.repeat(reverse: true);
+    // ✅ FIX: Max 3 daqiqa, foydalanuvchi o'zi to'xtatadi
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (mounted) setState(() => _recordingSeconds++);
-      if (_recordingSeconds >= 60) _stopRecording();
+      if (_recordingSeconds >= 180) _stopRecording(); // 3 daqiqa max
     });
 
     final session = ref.read(speakingSessionProvider);
@@ -244,8 +286,9 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
       localeId: locale,
       listenOptions: SpeechListenOptions(
         listenMode: ListenMode.dictation,
+        cancelOnError: false,
       ),
-      pauseFor: const Duration(seconds: 3),
+      pauseFor: const Duration(seconds: 120), // ✅ FIX: 2 daqiqa jimlik kutadi
     );
   }
 
@@ -926,6 +969,49 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
                 ),
               ],
             ),
+            // ✅ YANGI: Premium AI Murabbiy tugmasi
+            if (ref.watch(hasPremiumProvider)) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final d = _assessmentResult ?? {};
+                    final score = (d['overallScore'] as num?)?.toDouble() ?? 0;
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => PremiumCoachScreen(
+                        trigger: 'after_lesson',
+                        skillType: 'speaking',
+                        lastScore: score,
+                        // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
+                        sessionData: {
+                          'topic': d['topic']?.toString() ?? '',
+                          'ieltsBand': d['ieltsBand']?.toString(),
+                          'transcribedText': d['transcribedText']?.toString(),
+                          'grammarErrors': (d['grammarErrors'] as List?)
+                                  ?.map((e) => e.toString())
+                                  .toList() ??
+                              <String>[],
+                        },
+                      ),
+                    ));
+                  },
+                  icon: const Icon(Icons.workspace_premium,
+                      color: Color(0xFFFFD700), size: 18),
+                  label: const Text('AI Murabbiy tahlili',
+                      style: TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side:
+                        const BorderSide(color: Color(0xFFFFD700), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
           ],
         ),

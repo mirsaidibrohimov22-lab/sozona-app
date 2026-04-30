@@ -33,6 +33,7 @@ class GenerateQuiz implements UseCase<GeneratedContent, GenerateQuizParams> {
       topic: params.topic,
       questionCount: params.questionCount,
       difficulty: params.difficulty,
+      grammar: params.grammar,
     );
   }
 
@@ -85,6 +86,8 @@ class GenerateQuizParams {
   final String topic; // Mavzu
   final int questionCount; // Savol soni
   final String difficulty; // easy, medium, hard
+  final String
+      grammar; // Grammatika (ixtiyoriy): 'present simple', 'past tense'
 
   const GenerateQuizParams({
     required this.language,
@@ -92,6 +95,7 @@ class GenerateQuizParams {
     required this.topic,
     required this.questionCount,
     this.difficulty = 'medium',
+    this.grammar = '',
   });
 
   /// Copy with
@@ -101,6 +105,7 @@ class GenerateQuizParams {
     String? topic,
     int? questionCount,
     String? difficulty,
+    String? grammar,
   }) {
     return GenerateQuizParams(
       language: language ?? this.language,
@@ -108,6 +113,7 @@ class GenerateQuizParams {
       topic: topic ?? this.topic,
       questionCount: questionCount ?? this.questionCount,
       difficulty: difficulty ?? this.difficulty,
+      grammar: grammar ?? this.grammar,
     );
   }
 

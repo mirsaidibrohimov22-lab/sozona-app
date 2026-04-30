@@ -1,25 +1,31 @@
 // lib/features/student/home/presentation/screens/student_home_screen.dart
-// So'zona — O'quvchi bosh sahifasi
 // ✅ TUZATILDI: AI Motivation banner qo'shildi
 // ✅ TUZATILDI: dynamic → UserEntity? (oldingi fix saqlanadi)
+// ✅ YANGI: StreakService — app ochilganda streak yangilanadi
+// ✅ YANGI: voiceAssistant initialize() + _VoiceFab qo'shildi
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/core/constants/app_sizes.dart';
 import 'package:my_first_app/core/providers/firebase_providers.dart';
 import 'package:my_first_app/core/widgets/app_loading_widget.dart';
 import 'package:my_first_app/core/widgets/app_error_widget.dart';
+import 'package:my_first_app/core/services/streak_service.dart';
 import 'package:my_first_app/features/auth/domain/entities/user_entity.dart';
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/student/home/presentation/providers/student_home_provider.dart';
+import 'package:my_first_app/features/student/home/presentation/widgets/daily_box_widget.dart';
 import 'package:my_first_app/features/student/home/presentation/widgets/growth_tree_widget.dart';
 import 'package:my_first_app/features/student/home/presentation/widgets/quick_actions_widget.dart';
 import 'package:my_first_app/features/student/home/presentation/widgets/learning_stats_card.dart';
 import 'package:my_first_app/features/student/home/presentation/widgets/level_progress_widget.dart';
 import 'package:my_first_app/features/student/home/presentation/widgets/recommended_lesson_card.dart';
+// ✅ YANGI: Ovozli yordamchi
+import 'package:my_first_app/features/voice_assistant/providers/voice_assistant_provider.dart';
 
 /// O'quvchi bosh sahifasi
 class StudentHomeScreen extends ConsumerStatefulWidget {
@@ -29,15 +35,36 @@ class StudentHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<StudentHomeScreen> createState() => _StudentHomeScreenState();
 }
 
-class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
+class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final user = ref.read(authNotifierProvider).user;
+      // ✅ Streak yangilash
+      if (user != null) {
+        ref.read(streakServiceProvider).updateStreak(user.id);
+      }
       ref.read(studentHomeProvider.notifier).loadHomeData(user);
+      // ✅ YANGI: Ovozli yordamchi fonda ishga tushirish
+      ref.read(voiceAssistantProvider.notifier).initialize();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(studentHomeProvider.notifier).refresh();
+    }
   }
 
   @override
@@ -47,6 +74,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     final UserEntity? user = authState.user;
 
     return Scaffold(
+      // ✅ YANGI: Ovozli yordamchi FAB tugmasi
+      floatingActionButton: const _VoiceFab(),
       body: SafeArea(
         child: homeState.isLoading
             ? const AppLoadingWidget()
@@ -79,7 +108,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           child: _buildHeader(context, user),
         ),
 
-        // ── ✅ YANGI: AI Motivation Banner ──
+        // ── AI Motivation Banner ──
         if (homeState.motivation != null)
           SliverToBoxAdapter(
             child: Padding(
@@ -100,7 +129,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
             child: SizedBox(height: AppSizes.spacingMd),
           ),
 
-        // ── O'suvchi Daraxt (streak o'rniga) ──
+        // ── Kundalik sirpriz quti ──
+        if (user != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacingLg,
+              ),
+              child: DailyBoxWidget(uid: user.id),
+            ),
+          ),
+
+        const SliverToBoxAdapter(
+          child: SizedBox(height: AppSizes.spacingLg),
+        ),
+
+        // ── O'suvchi Daraxt ──
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -200,7 +244,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           ),
         ),
 
-        // Pastki bo'sh joy
+        // ── Pastki bo'sh joy ──
         const SliverToBoxAdapter(
           child: SizedBox(height: AppSizes.spacingXxl),
         ),
@@ -208,7 +252,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     );
   }
 
-  /// Header — salom va bildirishnoma tugmasi
   Widget _buildHeader(BuildContext context, UserEntity? user) {
     final greeting = _getGreeting();
 
@@ -236,7 +279,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
               ],
             ),
           ),
-          // ✅ YANGI: Ishlaydigan bildirishnoma tugmasi
           _NotificationBell(userId: user?.id ?? ''),
         ],
       ),
@@ -253,7 +295,42 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ✅ YANGI: Motivation Banner Widget (dismiss bilan)
+// ✅ YANGI: Voice FAB — ovozli yordamchi tugmasi
+// ═══════════════════════════════════════════════════════════════
+class _VoiceFab extends ConsumerWidget {
+  const _VoiceFab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ui = ref.watch(voiceAssistantProvider);
+
+    if (!ui.isPremium) return const SizedBox.shrink();
+
+    final color = ui.isSpeaking
+        ? AppColors.primary
+        : ui.isWaitingInput
+            ? AppColors.success
+            : AppColors.info;
+
+    return FloatingActionButton.small(
+      backgroundColor: color,
+      tooltip: "So'zona Yordamchi",
+      onPressed: () => context.pushNamed('voice-assistant'),
+      child: Icon(
+        ui.isSpeaking
+            ? Icons.record_voice_over_rounded
+            : ui.isWaitingInput
+                ? Icons.mic_rounded
+                : Icons.hearing_rounded,
+        color: Colors.white,
+        size: 20,
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI Motivation Banner Widget
 // ═══════════════════════════════════════════════════════════════
 class _MotivationBannerWidget extends StatefulWidget {
   final String message;
@@ -293,7 +370,6 @@ class _MotivationBannerWidgetState extends State<_MotivationBannerWidget>
       parent: _controller,
       curve: Curves.easeOutCubic,
     ));
-
     _controller.forward();
   }
 
@@ -335,14 +411,14 @@ class _MotivationBannerWidgetState extends State<_MotivationBannerWidget>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('🤖', style: TextStyle(fontSize: 28)),
+              const Text('🎓', style: TextStyle(fontSize: 28)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'AI Coach',
+                      "So'zona",
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 11,
@@ -388,7 +464,7 @@ class _MotivationBannerWidgetState extends State<_MotivationBannerWidget>
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ✅ YANGI: Bildirishnoma tugmasi — o'qilmagan soni badge bilan
+// Bildirishnoma tugmasi
 // ═══════════════════════════════════════════════════════════════
 class _NotificationBell extends ConsumerWidget {
   final String userId;
@@ -474,7 +550,7 @@ class _NotificationBell extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ✅ YANGI: Bildirishnomalar bottom sheet
+// Bildirishnomalar bottom sheet
 // ═══════════════════════════════════════════════════════════════
 class _NotificationsSheet extends ConsumerWidget {
   final String userId;
@@ -496,7 +572,6 @@ class _NotificationsSheet extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              // Handle
               Container(
                 margin: const EdgeInsets.only(top: 12, bottom: 8),
                 width: 40,
@@ -506,7 +581,6 @@ class _NotificationsSheet extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // Sarlavha
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -526,13 +600,11 @@ class _NotificationsSheet extends ConsumerWidget {
                 ),
               ),
               const Divider(height: 1),
-              // Ro'yxat
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: db
                       .collection('notifications')
                       .where('userId', isEqualTo: userId)
-                      .orderBy('createdAt', descending: true)
                       .limit(50)
                       .snapshots(),
                   builder: (context, snap) {
@@ -607,7 +679,7 @@ class _NotificationsSheet extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ✅ YANGI: Bitta bildirishnoma tile
+// Bitta bildirishnoma tile
 // ═══════════════════════════════════════════════════════════════
 class _NotificationTile extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -698,6 +770,7 @@ class _NotificationTile extends StatelessWidget {
   IconData _typeIcon(String type) {
     switch (type) {
       case 'streak':
+      case 'streak_milestone':
         return Icons.local_fire_department;
       case 'achievement':
         return Icons.emoji_events;
@@ -709,6 +782,13 @@ class _NotificationTile extends StatelessWidget {
         return Icons.class_;
       case 'quiz':
         return Icons.quiz;
+      case 'premium_activated':
+        return Icons.workspace_premium;
+      case 'leaderboard_top3':
+      case 'leaderboard_winner':
+        return Icons.emoji_events;
+      case 'leaderboard_overtaken':
+        return Icons.trending_down;
       default:
         return Icons.notifications;
     }
@@ -717,6 +797,7 @@ class _NotificationTile extends StatelessWidget {
   Color _typeColor(String type) {
     switch (type) {
       case 'streak':
+      case 'streak_milestone':
         return Colors.orange;
       case 'achievement':
         return Colors.amber;
@@ -728,6 +809,12 @@ class _NotificationTile extends StatelessWidget {
         return Colors.green;
       case 'quiz':
         return Colors.purple;
+      case 'premium_activated':
+      case 'leaderboard_top3':
+      case 'leaderboard_winner':
+        return const Color(0xFFFFD700);
+      case 'leaderboard_overtaken':
+        return Colors.redAccent;
       default:
         return AppColors.textSecondary;
     }

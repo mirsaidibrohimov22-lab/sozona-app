@@ -1,7 +1,6 @@
-// ═══════════════════════════════════════════════════════════════
-// SO'ZONA — AI Chat Screen
-// QO'YISH: lib/features/student/ai_chat/presentation/screens/ai_chat_screen.dart
-// ═══════════════════════════════════════════════════════════════
+// lib/features/student/ai_chat/presentation/screens/ai_chat_screen.dart
+// So'zona — AI Chat Screen
+// ✅ YANGI: initialMessage parametri — kitob mashqlaridan xatolar yuboriladi
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +12,10 @@ import 'package:my_first_app/features/student/ai_chat/presentation/widgets/sugge
 import 'package:my_first_app/features/student/ai_chat/presentation/widgets/typing_indicator.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
-  const AiChatScreen({super.key});
+  // ✅ YANGI: Kitob mashqlaridan xato yuborilganda avtomatik xabar
+  final String? initialMessage;
+
+  const AiChatScreen({super.key, this.initialMessage});
 
   @override
   ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
@@ -22,6 +24,7 @@ class AiChatScreen extends ConsumerStatefulWidget {
 class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  bool _initialSent = false;
 
   static const _suggestions = [
     'Present Perfect tushuntir',
@@ -29,6 +32,22 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     'Modal verbs misollar',
     'German Artikel qoidasi',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Kitobdan xato yuborilgan bo'lsa — avtomatik jo'natish
+    if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
+      Future.microtask(() => _sendInitial());
+    }
+  }
+
+  Future<void> _sendInitial() async {
+    if (_initialSent) return;
+    _initialSent = true;
+    await ref.read(chatProvider.notifier).sendMessage(widget.initialMessage!);
+    _scrollToBottom();
+  }
 
   @override
   void dispose() {
@@ -60,7 +79,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
 
-    // Scroll when new message arrives
     if (chatState.messages.isNotEmpty) _scrollToBottom();
 
     return Scaffold(
@@ -77,15 +95,56 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AI Yordam', style: TextStyle(fontSize: 16)),
-                Text('Doim tayyor', style: TextStyle(fontSize: 11)),
+                const Text('AI Yordam', style: TextStyle(fontSize: 16)),
+                Builder(builder: (context) {
+                  final limit = ref.watch(chatProvider).limitState;
+                  if (!limit.isLoaded) {
+                    return const Text('Doim tayyor',
+                        style: TextStyle(fontSize: 11));
+                  }
+                  final color = limit.remaining <= 2
+                      ? Colors.red
+                      : limit.remaining <= 5
+                          ? Colors.orange
+                          : Colors.green;
+                  return Text(
+                    limit.isPremium
+                        ? '${limit.remaining}/${limit.limit} (Premium)'
+                        : '${limit.remaining}/${limit.limit} savol qoldi',
+                    style: TextStyle(fontSize: 11, color: color),
+                  );
+                }),
               ],
             ),
           ],
         ),
+        // ✅ Kitobdan kelgan bo'lsa — banner ko'rsatish
+        bottom: widget.initialMessage != null
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(36),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.auto_stories,
+                          color: Color(0xFFFFD700), size: 14),
+                      SizedBox(width: 6),
+                      Text(
+                        'Kitob mashqlari — xatolaringiz tahlil qilinmoqda',
+                        style:
+                            TextStyle(color: Color(0xFFFFD700), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
       ),
       body: Column(
         children: [
@@ -133,11 +192,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   ),
           ),
 
-          // Suggestions - faqat boshlang'ich va AI javobidan keyin
+          // Suggestions
           if (chatState.messages.isEmpty ||
               (chatState.messages.isNotEmpty &&
                   chatState.messages.last.role == MessageRole.assistant &&
-                  (chatState.messages.last.suggestions?.isEmpty != false) &&
+                  (chatState.messages.last.suggestions.isEmpty != false) &&
                   !chatState.messages.last.isLoading))
             SizedBox(
               height: 44,

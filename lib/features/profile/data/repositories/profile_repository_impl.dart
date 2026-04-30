@@ -34,6 +34,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     required String userId,
     String? fullName,
     String? avatarUrl,
+    String? avatarVisibility,
     String? level,
     String? preferredLanguage,
     String? uiLanguage,
@@ -43,9 +44,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
       final fields = <String, dynamic>{};
       if (fullName != null) fields['fullName'] = fullName;
       if (avatarUrl != null) fields['avatarUrl'] = avatarUrl;
+      if (avatarVisibility != null)
+        fields['avatarVisibility'] = avatarVisibility;
       if (level != null) fields['level'] = level;
       if (preferredLanguage != null) {
         fields['preferredLanguage'] = preferredLanguage;
+        // ✅ FIX: learningLanguage fieldini ham yangilaymiz
+        // UserModel 'learningLanguage' fieldini 'english'/'german' formatida o'qiydi
+        // LanguagePicker 'en'/'de' qaytaradi — to'g'ri formatga o'giramiz
+        final langValue = preferredLanguage == 'de' ? 'german' : 'english';
+        fields['learningLanguage'] = langValue;
       }
       if (uiLanguage != null) fields['uiLanguage'] = uiLanguage;
       if (dailyGoalMinutes != null) {
@@ -111,6 +119,20 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final url = await _remote.uploadAvatar(userId, filePath);
       return Right(url);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    }
+  }
+
+  // ─── deleteAvatar ─────────────────────────────────────────
+  // ✅ YANGI: Storage + Firestore dan rasmni o'chirish
+  @override
+  Future<Either<Failure, void>> deleteAvatar({
+    required String userId,
+  }) async {
+    try {
+      await _remote.deleteAvatar(userId);
+      return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     }

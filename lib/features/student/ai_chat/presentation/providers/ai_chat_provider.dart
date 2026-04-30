@@ -6,10 +6,11 @@
 //    YANGI: en → Inglizcha, de → Nemischa, default → O'zbekcha
 // ✅ 2-KUN FIX (K8): language va level user profildan olinadi
 //    ESKI: language: 'en', level: 'beginner' (HARDCODE)
-//    YANGI: user.learningLanguage.name, user.level.name
+//    YANGI: user.learningLanguage.name, user.level.name.toUpperCase()
 // ✅ 2-KUN FIX (J): chat_provider.dart re-export fayli uchun backward compat
 // ═══════════════════════════════════════════════════════════════
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:my_first_app/core/providers/firebase_providers.dart';
 import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
@@ -43,26 +44,62 @@ final getChatHistoryUseCaseProvider = Provider<GetChatHistory>((ref) {
 
 // ─── Chat State ───────────────────────────────────────────────
 
+class ChatLimitState {
+  final int used;
+  final int limit;
+  final int remaining;
+  final bool isPremium;
+  final bool isLoaded;
+
+  const ChatLimitState({
+    this.used = 0,
+    this.limit = 10,
+    this.remaining = 10,
+    this.isPremium = false,
+    this.isLoaded = false,
+  });
+
+  ChatLimitState copyWith({
+    int? used,
+    int? limit,
+    int? remaining,
+    bool? isPremium,
+    bool? isLoaded,
+  }) {
+    return ChatLimitState(
+      used: used ?? this.used,
+      limit: limit ?? this.limit,
+      remaining: remaining ?? this.remaining,
+      isPremium: isPremium ?? this.isPremium,
+      isLoaded: isLoaded ?? this.isLoaded,
+    );
+  }
+}
+
 class ChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
   final String? error;
+  final ChatLimitState limitState; // ✅ FIX: chat limit holati
 
   const ChatState({
     this.messages = const [],
     this.isLoading = false,
     this.error,
+    this.limitState = const ChatLimitState(),
   });
 
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isLoading,
     String? error,
+    ChatLimitState? limitState,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      limitState: limitState ?? this.limitState,
     );
   }
 }
@@ -75,6 +112,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final String userId;
   final String language;
   final String level;
+  final FirebaseFunctions _functions; // ✅ FIX: limit yuklash uchun
 
   ChatNotifier({
     required SendMessage sendMessage,
@@ -84,9 +122,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
     required this.level,
   })  : _sendMessage = sendMessage,
         _getHistory = getHistory,
+        _functions = FirebaseFunctions.instanceFor(region: 'us-central1'),
         super(const ChatState()) {
     _loadHistory();
     _sendProactiveGreeting();
+    _loadChatLimit(); // ✅ FIX: limit holatini yuklash
   }
 
   Future<void> _loadHistory() async {
@@ -94,6 +134,39 @@ class ChatNotifier extends StateNotifier<ChatState> {
     result.fold(
       (failure) => null,
       (messages) => state = state.copyWith(messages: messages),
+    );
+  }
+
+  // ✅ FIX: Cloud Function dan limit holatini yuklaymiz
+  Future<void> _loadChatLimit() async {
+    if (userId.isEmpty) return;
+    try {
+      final result = await _functions.httpsCallable('getChatStatus').call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (!mounted) return;
+      state = state.copyWith(
+        limitState: ChatLimitState(
+          used: (data['used'] as num?)?.toInt() ?? 0,
+          limit: (data['limit'] as num?)?.toInt() ?? 10,
+          remaining: (data['remaining'] as num?)?.toInt() ?? 10,
+          isPremium: (data['isPremium'] as bool?) ?? false,
+          isLoaded: true,
+        ),
+      );
+    } catch (_) {
+      // Limit yuklanmasa ham chat ishlaydi
+    }
+  }
+
+  // ✅ FIX: Xabar yuborgandan keyin limit yangilanadi
+  void _decrementLimit() {
+    final l = state.limitState;
+    if (!l.isLoaded) return;
+    state = state.copyWith(
+      limitState: l.copyWith(
+        used: l.used + 1,
+        remaining: (l.remaining - 1).clamp(0, l.limit),
+      ),
     );
   }
 
@@ -192,6 +265,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
           messages: updatedMessages,
           isLoading: false,
         );
+        // ✅ FIX: Muvaffaqiyatli javobdan keyin limit yangilanadi
+        _decrementLimit();
       },
     );
   }
@@ -244,7 +319,8 @@ final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
     // ✅ 2-KUN FIX (K8): User profildan til va daraja olinadi
     // ESKI: language: 'en', level: 'beginner' (HARDCODE!)
     // YANGI: user entity dan real qiymatlar
-    language: user?.learningLanguage.name ?? 'en',
-    level: user?.level.name ?? 'A1',
+    // ✅ FIX: 'german'/'english' (enum) → 'de'/'en' (Cloud Function API kodi)
+    language: user?.learningLanguage.name == 'german' ? 'de' : 'en',
+    level: user?.level.name.toUpperCase() ?? 'A1',
   );
 });

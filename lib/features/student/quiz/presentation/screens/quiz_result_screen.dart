@@ -1,6 +1,7 @@
 // lib/features/student/quiz/presentation/screens/quiz_result_screen.dart
 // So'zona — Quiz natijasi ekrani
 // ✅ 1-KUN FIX: '/student/quiz' → RoutePaths.quiz
+// ✅ FIX: AI Murabbiy tugmasi qo'shildi (premium foydalanuvchilar uchun)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/core/router/route_names.dart';
 import 'package:my_first_app/core/widgets/app_button.dart';
+import 'package:my_first_app/features/premium/presentation/providers/premium_provider.dart';
+import 'package:my_first_app/features/premium/presentation/screens/premium_coach_screen.dart';
 import 'package:my_first_app/features/student/quiz/presentation/providers/quiz_provider.dart';
 
 class QuizResultScreen extends ConsumerWidget {
@@ -131,6 +134,59 @@ class QuizResultScreen extends ConsumerWidget {
               label: 'Quizlarga qaytish',
               onPressed: () => context.go(RoutePaths.quiz),
             ),
+            // ✅ FIX: Premium AI Murabbiy tugmasi
+            if (ref.watch(hasPremiumProvider)) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PremiumCoachScreen(
+                        trigger: 'after_lesson',
+                        skillType: 'quiz',
+                        lastScore: attempt.percentage,
+                        // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
+                        sessionData: {
+                          'topic': attempt.quizTitle,
+                          'totalQuestions': attempt.answers.length,
+                          'correctCount':
+                              attempt.answers.where((a) => a.isCorrect).length,
+                          'wrongCount':
+                              attempt.answers.where((a) => !a.isCorrect).length,
+                          'wrongAnswers': attempt.wrongAnswers
+                              .map((a) => {
+                                    'question': a.questionId,
+                                    'userAnswer': a.userAnswer,
+                                    'correctAnswer': a.correctAnswer,
+                                  })
+                              .toList(),
+                        },
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.workspace_premium,
+                    color: Color(0xFFFFD700),
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'AI Murabbiy tahlili',
+                    style: TextStyle(
+                      color: Color(0xFFFFD700),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side:
+                        const BorderSide(color: Color(0xFFFFD700), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

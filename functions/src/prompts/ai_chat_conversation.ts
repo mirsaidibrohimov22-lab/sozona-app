@@ -19,6 +19,8 @@ export interface ChatRequest {
     message: string;
     language: 'en' | 'de';
     conversationHistory?: ChatTurn[];
+    isPremium?: boolean;
+    statsContext?: string; // ✅ Real statistika (natijalar so'ralganda)
 }
 
 export interface ChatTurn {
@@ -106,7 +108,7 @@ Hech qanday markdown, backtick yoki izoh qo'shma. Faqat JSON.`;
  */
 export async function chatWithTeacher(request: ChatRequest): Promise<ChatResponse> {
     const startTime = Date.now();
-    const { userId, message, language, conversationHistory = [] } = request;
+    const { userId, message, language, conversationHistory = [], isPremium = false, statsContext = '' } = request;
 
     // 1. Foydalanuvchi profilini olish
     const profile = await getUserProfile(userId);
@@ -114,8 +116,17 @@ export async function chatWithTeacher(request: ChatRequest): Promise<ChatRespons
     const weakTopics = profile?.weakTopics ?? [];
     const strongTopics = profile?.strongTopics ?? [];
 
+    // ✅ FIX: Premium: 1500 token (chuqur javoblar), tekin: 800 token (qisqa javoblar)
+    // Avval teskari yozilgan edi: isPremium ? 500 : 1000
+    const maxTokens = isPremium ? 1500 : 800;
+
     // 2. System prompt yaratish
     const systemPrompt = buildSystemPrompt(language, level, weakTopics, strongTopics);
+
+    // u2705 Real statistika (natijalar soraqlganda)
+    const statsSection = statsContext
+        ? `\n\nO'QUVCHI HAQIQIY STATISTIKASI:\n${statsContext}\n\nBu raqamlarni aniq ayt.`
+        : '';
 
     // 3. Conversation kontekst yaratish
     const contextMessages = conversationHistory
@@ -124,14 +135,14 @@ export async function chatWithTeacher(request: ChatRequest): Promise<ChatRespons
         .join('\n');
 
     const fullPrompt = contextMessages
-        ? `${systemPrompt}\n\nOldingi suhbat:\n${contextMessages}\n\nTalabaning yangi savoli: ${message}`
-        : `${systemPrompt}\n\nTalaba: ${message}`;
+        ? `${systemPrompt}${statsSection}\n\nOldingi suhbat:\n${contextMessages}\n\nTalabaning yangi savoli: ${message}`
+        : `${systemPrompt}${statsSection}\n\nTalaba: ${message}`;
 
     try {
         // 4. AI ga so'rov
         const response = await aiRouter({
             prompt: fullPrompt,
-            maxTokens: 1000,
+            maxTokens: maxTokens,
             temperature: 0.7,
             schema: null,
         });

@@ -31,6 +31,7 @@ class PhoneVerifyScreen extends ConsumerStatefulWidget {
 
 class _PhoneVerifyScreenState extends ConsumerState<PhoneVerifyScreen> {
   String _otpCode = '';
+  late String _currentVerificationId;
 
   int _resendSeconds = 60;
   Timer? _resendTimer;
@@ -39,6 +40,7 @@ class _PhoneVerifyScreenState extends ConsumerState<PhoneVerifyScreen> {
   @override
   void initState() {
     super.initState();
+    _currentVerificationId = widget.verificationId;
     _startResendTimer();
   }
 
@@ -69,7 +71,7 @@ class _PhoneVerifyScreenState extends ConsumerState<PhoneVerifyScreen> {
     ref.read(authNotifierProvider.notifier).clearFailure();
 
     await ref.read(authNotifierProvider.notifier).verifyOtp(
-          verificationId: widget.verificationId,
+          verificationId: _currentVerificationId,
           otpCode: _otpCode,
         );
   }
@@ -84,6 +86,7 @@ class _PhoneVerifyScreenState extends ConsumerState<PhoneVerifyScreen> {
         .signInWithPhone(phoneNumber: widget.phoneNumber);
 
     if (newVerificationId != null && mounted) {
+      _currentVerificationId = newVerificationId;
       _startResendTimer();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Yangi kod yuborildi')),

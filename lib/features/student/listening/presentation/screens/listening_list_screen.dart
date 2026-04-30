@@ -45,7 +45,7 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
     final hasFilter = selectedLanguage != null || selectedLevel != null;
     final user = ref.watch(authNotifierProvider).user;
     final lang = user?.learningLanguage.name ?? 'en';
-    final level = user?.level.name ?? 'A1';
+    final level = user?.level.name.toUpperCase() ?? 'A1';
 
     return Scaffold(
       appBar: AppBar(
@@ -154,10 +154,14 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
   // ═══════════════════════════════════════════════════════════════
   void _showAiGenerateDialog(BuildContext context, String lang, String level) {
     String selectedTopic = '';
+    String selectedGrammar = '';
     int questionCount = 5;
     int duration = 60;
+    final topicController = TextEditingController();
+    final grammarController = TextEditingController();
 
-    final topicSuggestions = lang == 'de'
+    // ✅ FIX: 'de' emas, enum nomi 'german'
+    final topicSuggestions = lang == 'german'
         ? [
             'Im Supermarkt',
             'Am Bahnhof',
@@ -172,6 +176,33 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
             'Science & Technology',
             'Health & Wellness',
             'Culture & Arts',
+            'Sports & Hobbies',
+            'Food & Cooking',
+            'Education',
+            'Environment',
+            'Shopping',
+            'Music & Movies',
+            'Family & Relationships',
+          ];
+
+    final grammarSuggestions = lang == 'german'
+        ? [
+            'Präsens',
+            'Perfekt',
+            'Modalverben',
+            'Akkusativ',
+            'Dativ',
+            'Konjunktiv II'
+          ]
+        : [
+            'Present Simple',
+            'Present Continuous',
+            'Past Simple',
+            'Present Perfect',
+            'Future (will/going to)',
+            'Conditionals',
+            'Modal Verbs',
+            'Passive Voice'
           ];
 
     showModalBottomSheet(
@@ -238,8 +269,9 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
                         TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 8),
                 TextField(
+                  controller: topicController,
                   decoration: InputDecoration(
-                    hintText: 'Mavzu kiriting...',
+                    hintText: 'O\'zingiz yozing: Sports, Cooking, My hobby...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -254,7 +286,10 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
                   children: topicSuggestions.map((t) {
                     final isSel = selectedTopic == t;
                     return GestureDetector(
-                      onTap: () => setModalState(() => selectedTopic = t),
+                      onTap: () => setModalState(() {
+                        selectedTopic = t;
+                        topicController.text = t;
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -367,7 +402,7 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
                               style:
                                   TextStyle(fontSize: 12, color: Colors.green)),
                           Text(
-                            '$level — ${lang == 'de' ? 'Nemis tili' : 'Ingliz tili'}',
+                            '$level — ${lang == 'german' ? 'Nemis tili' : 'Ingliz tili'}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.green),
@@ -376,6 +411,61 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 16),
+
+                // Grammatika (ixtiyoriy)
+                const Text('Grammatika (ixtiyoriy)',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: grammarController,
+                  decoration: InputDecoration(
+                    hintText:
+                        'O\'zingiz yozing: Present Perfect, Modalverben...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.spellcheck),
+                  ),
+                  onChanged: (v) => setModalState(() => selectedGrammar = v),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: grammarSuggestions.map((g) {
+                    final isSel = selectedGrammar == g;
+                    return GestureDetector(
+                      onTap: () => setModalState(() {
+                        selectedGrammar = isSel ? '' : g;
+                        grammarController.text = selectedGrammar;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isSel
+                              ? Colors.purple
+                              : Colors.purple.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSel
+                                ? Colors.purple
+                                : Colors.purple.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          g,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isSel ? Colors.white : Colors.purple,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 20),
 
@@ -390,6 +480,7 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
                         topic: selectedTopic.isNotEmpty
                             ? selectedTopic
                             : topicSuggestions.first,
+                        grammar: selectedGrammar,
                         lang: lang,
                         level: level,
                         questionCount: questionCount,
@@ -415,7 +506,10 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      topicController.dispose();
+      grammarController.dispose();
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -427,9 +521,13 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
     required String level,
     required int questionCount,
     required int duration,
+    String grammar = '',
   }) async {
     if (!mounted) return;
     setState(() => _isGenerating = true);
+
+    // ✅ FIX: 'german'/'english' → 'de'/'en' (Cloud Function uchun)
+    final langCode = lang == 'german' ? 'de' : 'en';
 
     try {
       final callable =
@@ -439,11 +537,12 @@ class _ListeningListScreenState extends ConsumerState<ListeningListScreen> {
       );
 
       await callable.call({
-        'language': lang,
+        'language': langCode,
         'level': level,
         'topic': topic,
         'questionCount': questionCount,
         'duration': duration,
+        if (grammar.isNotEmpty) 'grammar': grammar,
       });
 
       if (!mounted) return;

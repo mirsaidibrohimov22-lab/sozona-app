@@ -3,7 +3,8 @@
 
 import OpenAI from 'openai';
 
-const OPENAI_KEY = process.env.OPENAI_API_KEY ?? '';
+// ✅ FIX: Firebase Secret nomi OPENAI_KEY (OPENAI_API_KEY emas)
+const OPENAI_KEY = process.env.OPENAI_KEY ?? '';
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
 /**

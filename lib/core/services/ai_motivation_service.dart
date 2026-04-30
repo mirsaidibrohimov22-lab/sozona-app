@@ -322,9 +322,9 @@ class AiMotivationService {
 
     final messagesUz = <MotivationTrigger, List<String>>{
       MotivationTrigger.userReturned: [
-        '$g, $name! 🌟 Seni bu yerda ko\'rib turganimizdan bag\'oyat xursandmiz. Har bir kun o\'rganish uchun yangi imkoniyat — bugun ham katta qadam tashlaysan!',
-        '$g, $name! ☀️ Ilovaga kirganingdan quvonamiz! Sen til o\'rganish yo\'lida eng muhim narsani qilding — BOSHLADІNG. Davom et, g\'alaba yaqin!',
-        '$g, $name! 💫 Biz seni doim kutib turamiz. Bugun ozgina bo\'lsa ham mashq qilsang, bir yildan keyin sen boshqa odam bo\'lasan. Ishlaymizmi?',
+        '$g, $name! 🌟 Seni So\'zona ilovasida ko\'rib turganimizdan bag\'oyat xursandmiz. Har bir kun o\'rganish uchun yangi imkoniyat — bugun ham katta qadam tashlaysan!',
+        '$g, $name! ☀️ So\'zona ilovasiga kirganingdan quvonamiz! Sen til o\'rganish yo\'lida eng muhim narsani qilding — BOSHLADING. Davom et, g\'alaba yaqin!',
+        '$g, $name! 💫 So\'zona doim seni kutib turadi. Bugun ozgina bo\'lsa ham mashq qilsang, bir yildan keyin sen boshqa odam bo\'lasan. Ishlaymizmi?',
         '$g, $name! 🚀 Ko\'p odam boshlaydi, lekin davom ettirish — bu g\'oliblar ishi. Sen o\'sha g\'oliblardan birisan. Bugun ham birlashib ketamizmi?',
         '$g, $name! 🏆 Seni yana ko\'rib turganimizdan xursandmiz! Bugun bir so\'z o\'rgansang ham, kecha sen bo\'lgan kishidan yaxshiroqsan. Boshlaylikmi?',
       ],
@@ -354,11 +354,11 @@ class AiMotivationService {
 
     final messagesEn = <MotivationTrigger, List<String>>{
       MotivationTrigger.userReturned: [
-        '$g, $name! 🌟 We\'re so happy to see you here! Every day is a new opportunity to learn — take a big step today!',
-        '$g, $name! ☀️ Welcome back! You did the most important thing — you STARTED. Keep going, success is near!',
-        '$g, $name! 💫 We always wait for you. Even a little practice today will make you a different person in a year. Ready?',
+        '$g, $name! 🌟 We\'re so happy to see you in So\'zona! Every day is a new opportunity to learn — take a big step today!',
+        '$g, $name! ☀️ Welcome back to So\'zona! You did the most important thing — you STARTED. Keep going, success is near!',
+        '$g, $name! 💫 So\'zona always waits for you. Even a little practice today will make you a different person in a year. Ready?',
         '$g, $name! 🚀 Many people start, but continuing is what champions do. You\'re one of those champions. Let\'s go!',
-        '$g, $name! 🏆 So glad to see you again! Even one word learned today makes you better than yesterday. Shall we begin?',
+        '$g, $name! 🏆 So glad to see you again in So\'zona! Even one word learned today makes you better than yesterday. Shall we begin?',
       ],
       MotivationTrigger.weakAreaDetected: [
         '$g, $name! 💪 Challenges are a sign of growth! Every mistake strengthens your brain. Shall we try again?',

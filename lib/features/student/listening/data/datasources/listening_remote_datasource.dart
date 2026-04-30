@@ -1,3 +1,4 @@
+import 'dart:async';
 // lib/features/student/listening/data/datasources/listening_remote_datasource.dart
 // So'zona — Listening Remote DataSource
 // ✅ 1-KUN FIX (K9): hardcoded collection nomi → FirestorePaths.listeningExercises
@@ -375,12 +376,24 @@ class ListeningRemoteDataSourceImpl implements ListeningRemoteDataSource {
         // Activity saqlash xatosi sessiyani buzmaydi
       }
 
-      // ✅ FIX: Member progress yangilash — barcha sinflarda averageScore yangilanadi
+      // ✅ FIX: Member progress yangilash
       await MemberProgressService.instance.recordAttempt(
         userId: studentId,
         scorePercent: scorePercentage,
         skillType: 'listening',
       );
+
+      // ✅ YANGI: AI Murabbiy — xato yozish
+      if (scorePercentage < 80 && exerciseId.isNotEmpty) {
+        unawaited(_fn.httpsCallable('recordMistake').call({
+          'contentId': exerciseId,
+          'contentType': 'listening',
+          'userAnswer': wrongItems.isNotEmpty ? wrongItems.first : '',
+          'correctAnswer': '',
+          'scorePercent': scorePercentage,
+          'language': exercise.language,
+        }));
+      }
 
       return {
         'totalCount': totalQuestions,

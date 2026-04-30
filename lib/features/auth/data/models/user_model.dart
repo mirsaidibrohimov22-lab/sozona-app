@@ -25,6 +25,9 @@ class UserModel extends UserEntity {
     required super.updatedAt,
     super.lastLoginAt,
     super.isProfileComplete,
+    super.isPremium,
+    super.isUzbekUser,
+    super.premiumExpiresAt,
   });
 
   /// Firestore JSON dan UserModel yaratish
@@ -55,6 +58,11 @@ class UserModel extends UserEntity {
           ? _parseTimestamp(map['lastLoginAt'])
           : null,
       isProfileComplete: map['isProfileComplete'] as bool? ?? false,
+      isPremium: map['isPremium'] as bool? ?? false,
+      isUzbekUser: map['isUzbekUser'] as bool? ?? false,
+      premiumExpiresAt: map['premiumExpiresAt'] != null
+          ? _parseTimestamp(map['premiumExpiresAt'])
+          : null,
     );
   }
 
@@ -76,6 +84,9 @@ class UserModel extends UserEntity {
       updatedAt: entity.updatedAt,
       lastLoginAt: entity.lastLoginAt,
       isProfileComplete: entity.isProfileComplete,
+      isPremium: entity.isPremium,
+      isUzbekUser: entity.isUzbekUser,
+      premiumExpiresAt: entity.premiumExpiresAt,
     );
   }
 
@@ -134,6 +145,9 @@ class UserModel extends UserEntity {
       'updatedAt': updatedAt.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),
       'isProfileComplete': isProfileComplete,
+      'isPremium': isPremium,
+      'isUzbekUser': isUzbekUser,
+      'premiumExpiresAt': premiumExpiresAt?.toIso8601String(),
     };
   }
 
@@ -159,6 +173,11 @@ class UserModel extends UserEntity {
           ? DateTime.parse(map['lastLoginAt'] as String)
           : null,
       isProfileComplete: map['isProfileComplete'] as bool? ?? false,
+      isPremium: map['isPremium'] as bool? ?? false,
+      isUzbekUser: map['isUzbekUser'] as bool? ?? false,
+      premiumExpiresAt: map['premiumExpiresAt'] != null
+          ? _parseTimestamp(map['premiumExpiresAt'])
+          : null,
     );
   }
 
@@ -188,7 +207,8 @@ class UserModel extends UserEntity {
 
   /// Darajani parse qilish
   static LanguageLevel _parseLevel(String? value) {
-    switch (value) {
+    // ✅ FIX: Katta va kichik harflarni qo'llab-quvvatlash ('B1' va 'b1' ham)
+    switch (value?.toLowerCase()) {
       case 'a2':
         return LanguageLevel.a2;
       case 'b1':
