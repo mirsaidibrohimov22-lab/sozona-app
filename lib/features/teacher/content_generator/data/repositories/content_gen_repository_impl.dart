@@ -92,6 +92,7 @@ class ContentGeneratorRepositoryImpl implements ContentGeneratorRepository {
     required String topic,
     int duration = 120,
     int questionCount = 5,
+    String grammar = '',
   }) async {
     if (!await networkInfo.isConnected) {
       return const Left(
@@ -104,6 +105,7 @@ class ContentGeneratorRepositoryImpl implements ContentGeneratorRepository {
         topic: topic,
         duration: duration,
         questionCount: questionCount,
+        grammar: grammar,
       );
       return Right(result);
     } on ServerException catch (e) {

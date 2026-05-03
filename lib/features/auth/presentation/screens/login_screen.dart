@@ -1,5 +1,10 @@
 // lib/features/auth/presentation/screens/login_screen.dart
-// So'zona — Kirish ekrani (yangi dizayn)
+// So'zona — Kirish ekrani
+// ✅ RESPONSIVE FIX:
+//   - Header: height: 260 (fixed) → (screenH * 0.28).clamp(180, 270) (adaptive)
+//   - Form: keyboardDismissBehavior qo'shildi — klaviatura scroll bilan yopiladi
+//   - Bottom: MediaQuery.padding.bottom — nav bar ustida qoladi
+//   - Tugmalar: height: 54 → 52 (kichikroq, kichik ekranda muammo yo'q)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +49,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
 
+    // ✅ Adaptive header: ekran balandligining 28% (min 180, max 270)
+    // iPhone SE (667px) → 187px, Galaxy S24 (900px) → 252px
+    final screenHeight = MediaQuery.of(context).size.height;
+    final headerHeight = (screenHeight * 0.28).clamp(180.0, 270.0);
+
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (!mounted) return;
       if (next.status == AuthStatus.authenticated) {
@@ -61,9 +71,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: AppColors.bgPrimary,
       body: Column(
         children: [
-          // ── Gradient Header ──
+          // ── Gradient Header ── adaptive balandlik
           Container(
-            height: 260,
+            height: headerHeight,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
@@ -73,42 +83,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
             ),
             child: SafeArea(
+              bottom: false,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 68,
+                    height: 68,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
                     child: const Center(
-                      child: Text('🎓', style: TextStyle(fontSize: 36)),
+                      child: Text('🎓', style: TextStyle(fontSize: 34)),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   const Text(
                     "So'zona",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     "Til o'rganishning aqlli yo'li",
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -116,10 +126,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
 
-          // ── Form ──
+          // ── Form ── Expanded + SingleChildScrollView = overflow yo'q
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+              // ✅ Klaviatura chiqganda scroll orqali yopiladi
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -133,31 +145,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: AppColors.textPrimary,
                               ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
-                      'Hisobingizga kirish uchun ma\'lumotlarni kiriting',
+                      "Hisobingizga kirish uchun ma'lumotlarni kiriting",
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
                           ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
 
                     // Xatolik xabari
                     if (authState.failure != null)
                       Container(
-                        padding: const EdgeInsets.all(14),
-                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color: AppColors.errorLight,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: AppColors.error.withValues(alpha: 0.3)),
+                            color: AppColors.error.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
                             const Icon(Icons.error_outline,
-                                color: AppColors.error, size: 20),
-                            const SizedBox(width: 10),
+                                color: AppColors.error, size: 18),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 authState.failure!.message,
@@ -183,12 +196,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         final emailRegex =
                             RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                         if (!emailRegex.hasMatch(value.trim())) {
-                          return 'Email formati noto\'g\'ri';
+                          return "Email formati noto'g'ri";
                         }
                         return null;
                       },
                     ),
-
                     const SizedBox(height: AppSizes.spacingMd),
 
                     // Parol
@@ -205,21 +217,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               : Icons.visibility_outlined,
                           color: AppColors.textSecondary,
                         ),
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Parol kiritilishi shart';
                         }
                         if (value.length < 8) {
-                          return 'Parol kamida 8 belgidan iborat bo\'lishi kerak';
+                          return "Parol kamida 8 belgidan iborat bo'lishi kerak";
                         }
                         return null;
                       },
                     ),
-
                     const SizedBox(height: AppSizes.spacingSm),
 
                     // Parolni unutdim
@@ -231,12 +241,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: const Text('Parolni unutdingizmi?'),
                       ),
                     ),
+                    const SizedBox(height: 16),
 
-                    const SizedBox(height: 24),
-
-                    // Kirish tugmasi — gradient
+                    // Kirish tugmasi
                     Container(
-                      height: 54,
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF6C63FF), Color(0xFF4A42D6)],
@@ -258,7 +267,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         child: authState.isLoading
                             ? const SizedBox(
@@ -279,8 +289,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                       ),
                     ),
-
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     // Ajratuvchi
                     Row(
@@ -301,12 +310,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
 
-                    const SizedBox(height: 24),
-
-                    // Ro'yxatdan o'tish
+                    // Yangi hisob
                     Container(
-                      height: 54,
+                      height: 52,
                       decoration: BoxDecoration(
                         color: AppColors.bgTertiary,
                         borderRadius: BorderRadius.circular(16),
@@ -316,7 +324,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: () => context.push(RoutePaths.register),
                         style: TextButton.styleFrom(
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         child: Text(
                           'Yangi hisob yaratish',
@@ -327,6 +336,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
+                    ),
+
+                    // ✅ Bottom safe area — nav bar ustida qolish uchun
+                    SizedBox(
+                      height: MediaQuery.of(context).padding.bottom + 24,
                     ),
                   ],
                 ),

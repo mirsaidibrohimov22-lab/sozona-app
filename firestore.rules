@@ -223,8 +223,12 @@ service cloud.firestore {
     // ═══════════════════════════════════
     // ACTIVITIES
     // ═══════════════════════════════════
+    // ACTIVITIES
+    // ═══════════════════════════════════
+    // ✅ FIX: Avval isAuth() — har kim boshqaning activitiylarini o'qiy olar edi.
+    // Yangi: faqat o'z activitylarini yoki teacher o'quvchilarini ko'ra oladi.
     match /activities/{activityId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (resource.data.userId == uid() || isTeacher());
       allow create: if isAuth() && request.resource.data.userId == uid();
       allow update, delete: if false;
     }
@@ -271,6 +275,17 @@ service cloud.firestore {
     match /user_costs/{userId} { allow read: if isOwner(userId); allow write: if false; }
     match /rate_limits/{docId} { allow read: if false; allow write: if false; }
 
+    // ✅ FIX: verifyPurchase token qayta ishlatilishini bloklash uchun
+    // Faqat Cloud Functions (admin SDK) yozadi — klient hech narsa qila olmaydi
+    match /used_purchase_tokens/{tokenId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // AI chat kunlik limit — faqat Cloud Function (admin SDK) yozadi va yangilaydi.
+    // Klient tomonidan o'qish yoki yozish taqiqlangan.
+    match /chat_limits/{docId} { allow read: if false; allow write: if false; }
+
     // ═══════════════════════════════════════════════════════════
     // PROMO KODLAR — faqat Cloud Function orqali yoziladi
     // ═══════════════════════════════════════════════════════════
@@ -313,6 +328,43 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // LEADERBOARD — G'OLIBLAR
+    // Faqat Cloud Function (admin SDK) yozadi.
+    // Foydalanuvchi o'z g'alaba tarixini o'qiy oladi.
+    // ═══════════════════════════════════════════════════════════
+    match /winners/{yearMonth} {
+      // Hamma o'qiy oladi — leaderboard sahifasida ko'rsatiladi
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // LEADERBOARD NOTIFICATION LOG — SPAM OLDINI OLISH
+    // Faqat Cloud Function (admin SDK) yozadi va o'chiradi.
+    // Klient tomonidan hech qanday operatsiyaga ruxsat yo'q.
+    // ═══════════════════════════════════════════════════════════
+    match /leaderboard_notif_log/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // REFERRAL KODLAR
+    // Foydalanuvchi faqat o'z kodini o'qiy oladi.
+    // Kod yaratish va mukofot berish — faqat Cloud Function.
+    // ═══════════════════════════════════════════════════════════
+    match /referral_codes/{code} {
+      // Foydalanuvchi referral statistikasi uchun o'qiydi (getReferralStats)
+      allow read: if isAuth();
+      allow write: if false;
+
+      match /uses/{userId} {
+        // Foydalanuvchi o'z ishlatish yozuvini o'qiy oladi
+        allow read: if isAuth() && uid() == userId;
+        allow write: if false;
+      }
+    }
 
   }
 }

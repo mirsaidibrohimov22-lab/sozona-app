@@ -220,9 +220,11 @@ class _AiTutorScreenState extends ConsumerState<AiTutorScreen> {
                         ],
                       ),
                       child: tutorState.isLoadingStats
-                          ? const SizedBox(
-                              height: 100,
-                              child: AppLoadingWidget(),
+                          ? SizedBox(
+                              height:
+                                  (MediaQuery.of(context).size.height * 0.14)
+                                      .clamp(80.0, 120.0),
+                              child: const AppLoadingWidget(),
                             )
                           : WeeklyStatsChart(stats: tutorState.weeklyStats),
                     ),
@@ -276,8 +278,9 @@ class _BooksSection extends StatelessWidget {
       children: [
         // ── Daraja kartalari (gorizontal scroll) ──
         SizedBox(
-          // ✅ FIX: 110 → 130 — "Siz" badge uchun joy
-          height: 130,
+          // ✅ RESPONSIVE FIX: adaptive — iPhone SE 110px, katta 140px
+          height:
+              (MediaQuery.of(context).size.height * 0.16).clamp(110.0, 145.0),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: levels.length,

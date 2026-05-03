@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MAHSULOT ID LARI — Play Console dagi ID lar bilan mos kelishi kerak
@@ -134,14 +135,19 @@ class IAPService {
   }
 
   // ── CLOUD FUNCTION ORQALI TASDIQLASH ────────────────────────
+  // ✅ FIX: package name endi dinamik olinadi
+  // Avval: 'com.example.sozona' — test nomi, haqiqiy Play da ishlamaydi
+  // Yangi: PackageInfo.fromPlatform() — qurilmadan haqiqiy nomni oladi
   Future<bool> _verifyPurchase(PurchaseDetails purchase) async {
     try {
+      // Haqiqiy package name ni qurilmadan olish
+      final packageInfo = await PackageInfo.fromPlatform();
       final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
       final callable = functions.httpsCallable('verifyPurchase');
       final result = await callable.call({
         'productId': purchase.productID,
         'purchaseToken': purchase.verificationData.serverVerificationData,
-        'packageName': 'com.example.sozona', // ← Google Play package name
+        'packageName': packageInfo.packageName, // ✅ dinamik, to'g'ri nom
       });
       return result.data['verified'] as bool? ?? false;
     } catch (e) {

@@ -1,6 +1,7 @@
 // lib/app.dart
 // So'zona — Asosiy Ilova Widgeti
 // ✅ SAFE BOOT: Firebase init bo'lmasa router yuklanmaydi → crash yo'q
+// ✅ RESPONSIVE FIX v2: ensureScreenSize: true qo'shildi (boshqa hech narsa o'zgarmadi)
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -103,6 +104,9 @@ class SozonaApp extends ConsumerWidget {
       designSize: const Size(393, 852),
       minTextAdapt: true,
       splitScreenMode: true,
+      // ✅ YANGI: ekran o'lchami tayyor bo'lguncha kutadi
+      // Bu kichik telefon va splash screen da noto'g'ri scale oldini oladi
+      ensureScreenSize: true,
       builder: (context, child) {
         return GestureDetector(
           // Tashqariga bosilganda klaviatura yopiladi
@@ -120,6 +124,7 @@ class SozonaApp extends ConsumerWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
+            // ✅ SAQLAB QOLINDI: ErrorWidget.builder — xato bo'lsa chiroyli ekran
             builder: (context, child) {
               ErrorWidget.builder = (FlutterErrorDetails details) {
                 debugPrint('❌ Widget xatosi: ${details.exception}');

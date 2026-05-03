@@ -17,40 +17,46 @@ const DAY_WINDOW = 24 * 60 * 60 * 1000; // 1 kun (ms)
 
 // ─────────────────────────────────────────────────────────────
 // UMUMIY RATE LIMIT (chatWithAI dan tashqari barcha funksiyalar)
+// ✅ K3 FIX: Firestore transaction — parallel so'rovlarda limit bypass yo'q
+// Avvalgi: read→check→write (3 alohida op) → race condition, limit bypass mumkin edi
+// Yangi:   barcha mantiq bitta atomik transactionda → 60 limit kafolatlangan
 // ─────────────────────────────────────────────────────────────
 export async function checkRateLimit(uid: string): Promise<void> {
     const now = Date.now();
-    const rateLimitRef = admin.firestore().collection('rate_limits').doc(uid);
+    const db = admin.firestore();
+    const rateLimitRef = db.collection('rate_limits').doc(uid);
 
     try {
-        const doc = await rateLimitRef.get();
+        await db.runTransaction(async (tx) => {
+            const doc = await tx.get(rateLimitRef);
 
-        if (!doc.exists) {
-            await rateLimitRef.set({ count: 1, windowStart: now, lastRequest: now });
-            return;
-        }
+            if (!doc.exists) {
+                tx.set(rateLimitRef, { count: 1, windowStart: now, lastRequest: now });
+                return;
+            }
 
-        const data = doc.data()!;
-        const windowStart = data.windowStart as number;
-        const count = data.count as number;
+            const data = doc.data()!;
+            const windowStart = data.windowStart as number;
+            const count = data.count as number;
 
-        // Yangi oyna — reset
-        if (now - windowStart > WINDOW) {
-            await rateLimitRef.set({ count: 1, windowStart: now, lastRequest: now });
-            return;
-        }
+            // Yangi oyna — reset
+            if (now - windowStart > WINDOW) {
+                tx.set(rateLimitRef, { count: 1, windowStart: now, lastRequest: now });
+                return;
+            }
 
-        if (count >= RATE_LIMIT) {
-            const resetTime = new Date(windowStart + WINDOW);
-            throw new functions.https.HttpsError(
-                'resource-exhausted',
-                `Juda ko'p so'rov. Iltimos, ${resetTime.toLocaleTimeString()} dan keyin urinib ko'ring.`
-            );
-        }
+            if (count >= RATE_LIMIT) {
+                const resetTime = new Date(windowStart + WINDOW);
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    `Juda ko'p so'rov. Iltimos, ${resetTime.toLocaleTimeString()} dan keyin urinib ko'ring.`
+                );
+            }
 
-        await rateLimitRef.update({
-            count: admin.firestore.FieldValue.increment(1),
-            lastRequest: now,
+            tx.update(rateLimitRef, {
+                count: admin.firestore.FieldValue.increment(1),
+                lastRequest: now,
+            });
         });
 
     } catch (error: unknown) {
@@ -79,45 +85,53 @@ export async function checkChatDailyLimit(uid: string): Promise<void> {
     const dailyLimit = hasActivePremium ? CHAT_LIMIT_PREMIUM : CHAT_LIMIT_FREE;
 
     // 2. Kunlik chat counter
+    // ✅ FIX: Firestore transaction — parallel so'rovlarda limit bypass yo'q.
+    // Avvalgi: read → check → write (3 alohida op) → race condition:
+    //   Foydalanuvchi bir vaqtda 2 so'rov yuborsa, ikkalasi ham count=9 o'qib
+    //   limit=10 ga yetmasligini ko'rib, ikkalasi ham o'tib ketardi (11 ta bo'lardi).
+    // Yangi: barcha mantiq bitta atomik transactionda → limit kafolatlangan.
     const chatLimitRef = db.collection('chat_limits').doc(uid);
-    const doc = await chatLimitRef.get();
 
-    if (!doc.exists) {
-        await chatLimitRef.set({ count: 1, dayStart: now });
-        return;
-    }
+    await db.runTransaction(async (tx) => {
+        const doc = await tx.get(chatLimitRef);
 
-    const data = doc.data()!;
-    const dayStart = data.dayStart as number;
-    const count = data.count as number;
-
-    // Yangi kun — reset
-    if (now - dayStart > DAY_WINDOW) {
-        await chatLimitRef.set({ count: 1, dayStart: now });
-        return;
-    }
-
-    // Limit tekshiruvi
-    if (count >= dailyLimit) {
-        const resetTime = new Date(dayStart + DAY_WINDOW);
-        const resetHour = resetTime.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-
-        if (hasActivePremium) {
-            throw new functions.https.HttpsError(
-                'resource-exhausted',
-                `Kunlik ${CHAT_LIMIT_PREMIUM} ta savol limitiga yetdingiz. Ertaga ${resetHour} da yangilanadi.`
-            );
-        } else {
-            throw new functions.https.HttpsError(
-                'resource-exhausted',
-                `Tekin foydalanuvchilar uchun kunlik ${CHAT_LIMIT_FREE} ta savol limiti. Premium oling yoki ertaga ${resetHour} da qaytib keling.`
-            );
+        if (!doc.exists) {
+            tx.set(chatLimitRef, { count: 1, dayStart: now });
+            return;
         }
-    }
 
-    // Counterni oshirish
-    await chatLimitRef.update({
-        count: admin.firestore.FieldValue.increment(1),
+        const data = doc.data()!;
+        const dayStart = data.dayStart as number;
+        const count = data.count as number;
+
+        // Yangi kun — reset
+        if (now - dayStart > DAY_WINDOW) {
+            tx.set(chatLimitRef, { count: 1, dayStart: now });
+            return;
+        }
+
+        // Limit tekshiruvi
+        if (count >= dailyLimit) {
+            const resetTime = new Date(dayStart + DAY_WINDOW);
+            const resetHour = resetTime.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+
+            if (hasActivePremium) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    `Kunlik ${CHAT_LIMIT_PREMIUM} ta savol limitiga yetdingiz. Ertaga ${resetHour} da yangilanadi.`
+                );
+            } else {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    `Tekin foydalanuvchilar uchun kunlik ${CHAT_LIMIT_FREE} ta savol limiti. Premium oling yoki ertaga ${resetHour} da qaytib keling.`
+                );
+            }
+        }
+
+        // Counterni transaction ichida oshirish
+        tx.update(chatLimitRef, {
+            count: admin.firestore.FieldValue.increment(1),
+        });
     });
 }
 

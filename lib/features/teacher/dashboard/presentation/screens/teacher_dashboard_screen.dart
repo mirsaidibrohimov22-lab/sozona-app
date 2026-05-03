@@ -208,9 +208,9 @@ class _TeacherDashboardScreenState
           ),
         ),
 
-        // Pastki bo'sh joy (FAB uchun)
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 100),
+        // ✅ RESPONSIVE FIX: FAB uchun adaptive pastki bo'sh joy
+        SliverToBoxAdapter(
+          child: SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
         ),
       ],
     );

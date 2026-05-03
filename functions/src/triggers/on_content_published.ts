@@ -29,6 +29,13 @@ export const onContentPublished = functions.firestore
             level: string;
         };
 
+        // ✅ FIX: classId bo'lmasa trigger crash qilmasdan chiqadi.
+        // Ba'zi contentlar sinfga bog'liq bo'lmasligi mumkin (global content).
+        if (!classId) {
+            console.log(`Content ${contentId} classId yo'q — notification o'tkazildi`);
+            return null;
+        }
+
         try {
             const membersSnapshot = await admin
                 .firestore()

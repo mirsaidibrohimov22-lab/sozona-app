@@ -341,20 +341,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Til
-                const Text(
-                  "O'rganayotgan til",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                LanguagePicker(
-                  selected: _selectedLanguage ?? 'en',
-                  onChanged: (v) => setState(() {
-                    _selectedLanguage = v;
-                    _isDirty = true;
-                  }),
-                ),
-                const SizedBox(height: 20),
+                // Til — faqat o'quvchiga ko'rinadi
+                // ✅ FIX: O'qituvchi til tanlamaydi — u til o'RGATADI, o'rganmaydi
+                if (!isTeacher) ...[
+                  const Text(
+                    "O'rganayotgan til",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  LanguagePicker(
+                    selected: _selectedLanguage ?? 'en',
+                    onChanged: (v) => setState(() {
+                      _selectedLanguage = v;
+                      _isDirty = true;
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // Daraja — faqat o'quvchiga ko'rinadi
                 if (!isTeacher) ...[

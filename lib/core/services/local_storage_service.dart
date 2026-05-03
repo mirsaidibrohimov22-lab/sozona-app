@@ -167,6 +167,9 @@ class StorageService {
 // ═══════════════════════════════════
 // RIVERPOD PROVIDER
 // ═══════════════════════════════════
+// ✅ FIX v4: main.dart da overrideWithValue(storageInstance) ishlatiladi.
+// Bu provider to'g'ridan ishlatilmaydi — main.dart init qilgan instance uzatiladi.
+// Fallback sifatida qoldirilgan (test yoki izolyatsiyalangan muhit uchun).
 
 final storageServiceProvider = Provider<StorageService>((ref) {
   return StorageService();

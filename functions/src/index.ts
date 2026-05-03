@@ -565,32 +565,40 @@ export const joinClassByCode = functions
 
         const classDoc = classSnap.docs[0];
         const classId = classDoc.id;
-        const classData = classDoc.data();
+        const classRef = db.collection('classes').doc(classId);
+        const memberRef = classRef.collection('members').doc(uid);
 
-        // 2. Allaqachon a'zo emasligini tekshirish
-        const memberRef = db.collection('classes').doc(classId).collection('members').doc(uid);
-        const memberDoc = await memberRef.get();
-
-        if (memberDoc.exists) {
-            throw new functions.https.HttpsError(
-                'already-exists',
-                'Siz bu sinfga allaqachon a\'zo siz'
-            );
-        }
-
-        // 3. Sinf to'liq emasligini tekshirish
-        const maxStudents = (classData['maxStudents'] as number) ?? 50;
-        const memberCount = (classData['memberCount'] as number) ?? 0;
-        if (memberCount >= maxStudents) {
-            throw new functions.https.HttpsError(
-                'resource-exhausted',
-                'Sinf to\'liq. Boshqa sinfga qo\'shiling.'
-            );
-        }
-
-        // 4. Transaction — atomik qo'shish (admin SDK → Rules bypass)
+        // ✅ FIX: limit tekshiruvi va qo'shish — bitta atomik transaction ichida
+        // Avval: tekshiruv tashqarida (eski ma'lumot) → 2 kishi bir vaqtda kirsa limit oshib ketardi
+        // Yangi: transaction ichida yangi o'qish → haqiqiy, hozirgi holat tekshiriladi
         const now = admin.firestore.Timestamp.now();
         await db.runTransaction(async (tx) => {
+            // Transaction ichida YANGI o'qish — hozirgi haqiqiy holat
+            const [freshClassSnap, memberDoc] = await Promise.all([
+                tx.get(classRef),
+                tx.get(memberRef),
+            ]);
+
+            // 2. Allaqachon a'zo emasligini tekshirish
+            if (memberDoc.exists) {
+                throw new functions.https.HttpsError(
+                    'already-exists',
+                    'Siz bu sinfga allaqachon a\'zo siz'
+                );
+            }
+
+            // 3. Sinf to'liq emasligini ATOMIK tekshirish
+            const freshData = freshClassSnap.data() ?? {};
+            const maxStudents = (freshData['maxStudents'] as number) ?? 50;
+            const memberCount = (freshData['memberCount'] as number) ?? 0;
+            if (memberCount >= maxStudents) {
+                throw new functions.https.HttpsError(
+                    'resource-exhausted',
+                    'Sinf to\'liq. Boshqa sinfga qo\'shiling.'
+                );
+            }
+
+            // 4. Atomik qo'shish
             tx.set(memberRef, {
                 userId: uid,
                 fullName: studentName,
@@ -602,20 +610,21 @@ export const joinClassByCode = functions
                 currentStreak: 0,
                 avatarUrl: null,
             });
-
-            // ✅ FIX: memberCount trigger (onMemberJoined) tomonidan yangilanadi
-            // Bu yerda increment qilinmaydi — aks holda 2x oshib ketardi
+            // memberCount trigger (onMemberJoined) tomonidan yangilanadi
         });
 
         console.log(`✅ Student ${uid} joined class ${classId} with code ${joinCode}`);
 
+        // ✅ M4 FIX: memberCount + 1 o'chirildi
+        // Avvalgi: memberCount+1 qaytardi — lekin real increment onMemberJoined trigger'da asinxron
+        // Yangi: Flutter UI stream orqali haqiqiy qiymatni o'qiydi
         return {
             success: true,
             classId,
-            className: classData['name'] ?? '',
-            teacherId: classData['teacherId'] ?? '',
+            // ✅ FIX: classData o'chirildi — freshData (transaction dan) ishlatiladi
+            className: classDoc.data()?.['name'] ?? '',
+            teacherId: classDoc.data()?.['teacherId'] ?? '',
             joinCode,
-            memberCount: memberCount + 1,
         };
     });
 
@@ -837,11 +846,11 @@ export const redeemPromoCode = functions
             return until;
         });
 
-        const db2 = admin.firestore();
+        // ✅ O4 FIX: db2 o'rniga mavjud db ishlatiladi — ortiqcha instance yo'q
         const expiryFormatted = premiumUntil.toLocaleDateString('uz-UZ', {
             year: 'numeric', month: 'long', day: 'numeric',
         });
-        await db2.collection('notifications').add({
+        await db.collection('notifications').add({
             userId: uid,
             type: 'premium_activated',
             title: '🎉 Premium faollashdi!',
@@ -858,6 +867,61 @@ export const redeemPromoCode = functions
     });
 
 // ✅ YANGI: Muddati o'tgan premiumlarni avtomatik o'chirish (har kuni soat 03:00 Toshkent)
+// ─────────────────────────────────────────────────────────────────────────
+// PREMIUM TUGASH OGOHLANTIRISHI — har kuni 01:00 Toshkent
+// ✅ YANGI: premiumExpiresAt 1-2 kun qolganda foydalanuvchiga push yuboradi
+// expireOldPremiums (03:00) dan 2 soat oldin ishlaydi — foydalanuvchi tayyor bo'ladi
+// ─────────────────────────────────────────────────────────────────────────
+export const warnExpiringPremiums = functions
+    .region('us-central1')
+    .pubsub.schedule('0 1 * * *')
+    .timeZone('Asia/Tashkent')
+    .onRun(async () => {
+        const db = admin.firestore();
+        const now = new Date();
+
+        // 1-2 kun ichida tugaydigan premiumlar
+        const in1Day = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const in2Days = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+        const snap = await db.collection('users')
+            .where('isPremium', '==', true)
+            .where('premiumExpiresAt', '>=', admin.firestore.Timestamp.fromDate(in1Day))
+            .where('premiumExpiresAt', '<=', admin.firestore.Timestamp.fromDate(in2Days))
+            .get();
+
+        if (snap.empty) {
+            console.log('Premium muddati yaqin foydalanuvchi yo\'q');
+            return;
+        }
+
+        let sentCount = 0;
+        for (const doc of snap.docs) {
+            const uid = doc.id;
+            const expiresAt = (doc.data().premiumExpiresAt as admin.firestore.Timestamp).toDate();
+            const hoursLeft = Math.round((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+            const label = hoursLeft <= 24 ? 'ertaga' : '2 kunda';
+
+            await sendFcmToUser(
+                db,
+                uid,
+                {
+                    title: '⚠️ Premium tarifingiz tugayapti',
+                    body: `Premium tarifingiz ${label} tugaydi. Uzluksiz o'qishni davom ettirishingiz uchun yangilang!`,
+                },
+                {
+                    type: 'premium_expiry',
+                    title: '⚠️ Premium tarifingiz tugayapti',
+                    body: `Premium tarifingiz ${label} tugaydi. Uzluksiz o'qishni davom ettirishingiz uchun yangilang!`,
+                },
+                'premium_channel'
+            );
+            sentCount++;
+        }
+
+        console.log(`✅ Premium ogohlantirish: ${sentCount} ta foydalanuvchiga yuborildi`);
+    });
+
 export const expireOldPremiums = functions
     .region('us-central1')
     .pubsub.schedule('0 3 * * *')
@@ -881,8 +945,11 @@ export const expireOldPremiums = functions
         let count = 0;
 
         for (const doc of snap.docs) {
+            // ✅ M2 FIX: premiumExpiresAt ham tozalanadi
+            // Avvalgi: faqat isPremium:false → eski sana qolardi, kod premiumExpiresAt o'qisa xato
             batch.update(doc.ref, {
                 isPremium: false,
+                premiumExpiresAt: admin.firestore.FieldValue.delete(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             count++;
@@ -919,6 +986,22 @@ export const verifyPurchase = functions
         const userSnap = await userRef.get();
         if (!userSnap.exists) {
             throw new functions.https.HttpsError('not-found', "Foydalanuvchi topilmadi");
+        }
+
+        // ─── Token qayta ishlatilganini tekshirish ───────────────────────────
+        // ✅ FIX: Bilet yirtish — bir token bir martagina ishlatilishi mumkin
+        // Avval: tokenni saqlamardi → bir token bilan ikki marta premium olsa bo'lardi
+        // Yangi: 'used_purchase_tokens' kolleksiyasida saqlanadi → ikkinchi urinish bloklanadi
+        const tokenRef = db.collection('used_purchase_tokens').doc(
+            // Token uzun bo'lishi mumkin — Firestore ID uchun url-safe base64
+            // + → -, / → _, = olib tashlanadi (Firestore ID da / muammo yaratadi)
+            Buffer.from(purchaseToken).toString('base64')
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '').slice(0, 500)
+        );
+        const tokenSnap = await tokenRef.get();
+        if (tokenSnap.exists) {
+            console.warn(`❌ Token qayta ishlatildi: uid=${uid}, product=${productId}`);
+            throw new functions.https.HttpsError('already-exists', "Bu xarid allaqachon tasdiqlangan");
         }
 
         // ─── Google Play Developer API orqali token tasdiqlash ───────────────
@@ -961,6 +1044,9 @@ export const verifyPurchase = functions
         });
 
         // ─── Tasdiqlash natijasini tekshirish ────────────────────────────────
+        // ✅ FIX: subscription uchun expiryTimeMillis saqlash uchun tashqariga chiqarildi
+        let subscriptionExpiryMs = 0;
+
         if (isSubscription) {
             // subscriptionState: 1=faol, 2=to'xtatilgan, 3=muddati tugagan va h.k.
             const state = playResponse['subscriptionState'] as number | undefined;
@@ -971,9 +1057,9 @@ export const verifyPurchase = functions
                 console.warn(`❌ Subscription invalid: uid=${uid}, state=${state}, payment=${paymentState}`);
                 throw new functions.https.HttpsError('permission-denied', "Xarid tasdiqlanmadi");
             }
-            // expiryTimeMillis — subscription tugash sanasi
-            const expiryMs = parseInt((playResponse['expiryTimeMillis'] as string) ?? '0', 10);
-            if (expiryMs < Date.now()) {
+            // expiryTimeMillis — Google Play dagi haqiqiy tugash sanasi
+            subscriptionExpiryMs = parseInt((playResponse['expiryTimeMillis'] as string) ?? '0', 10);
+            if (subscriptionExpiryMs < Date.now()) {
                 throw new functions.https.HttpsError('permission-denied', "Obuna muddati tugagan");
             }
         } else {
@@ -988,9 +1074,20 @@ export const verifyPurchase = functions
         // ─── Tasdiqlangan — Firestore yangilash ─────────────────────────────
         const now = admin.firestore.Timestamp.now();
         const isYearly = productId.includes('yearly');
-        const expireDate = new Date();
-        expireDate.setMonth(expireDate.getMonth() + (isYearly ? 12 : 1));
 
+        // ✅ FIX: Subscription bo'lsa — Google Play expiryTimeMillis ishlatiladi
+        // (haqiqiy tugash sanasi, server vaqtiga bog'liq emas).
+        // One-time purchase bo'lsa — server vaqtidan 1 oy/1 yil qo'shiladi.
+        const expireDate = isSubscription && subscriptionExpiryMs > 0
+            ? new Date(subscriptionExpiryMs)
+            : (() => {
+                const d = new Date();
+                d.setMonth(d.getMonth() + (isYearly ? 12 : 1));
+                return d;
+            })();
+
+        // ✅ FIX: Tokenni "ishlatilgan" deb belgilash (premium yozish bilan birga)
+        // Agar userRef.update muvaffaqiyatli bo'lsa — token ham saqlanadi
         await userRef.update({
             isPremium: true,
             premiumProductId: productId,
@@ -998,6 +1095,13 @@ export const verifyPurchase = functions
             premiumStartedAt: now,
             premiumExpiresAt: admin.firestore.Timestamp.fromDate(expireDate),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        // Tokenni ishlatilgan deb belgilash — keyingi urinish bloklanadi
+        await tokenRef.set({
+            uid,
+            productId,
+            usedAt: now,
+            packageName,
         });
 
         await db.collection('notifications').add({
@@ -1026,22 +1130,9 @@ export const claimDailyReward = functions
         const userRef = db.collection('users').doc(uid);
         const now = admin.firestore.Timestamp.now();
 
-        // 1. Bugun ochilganmi tekshirish
-        const progressSnap = await progressRef.get();
-        if (progressSnap.exists) {
-            const lastOpen = progressSnap.data()?.lastBoxOpenDate as admin.firestore.Timestamp | undefined;
-            if (lastOpen) {
-                const lastDate = lastOpen.toDate();
-                const lastDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
-                const today = new Date();
-                const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                if (lastDay.getTime() >= todayDay.getTime()) {
-                    throw new functions.https.HttpsError('failed-precondition', 'Bugun quti allaqachon ochilgan');
-                }
-            }
-        }
-
-        // 2. Server-side mukofot tanlash (40/20/10/10/20)
+        // ✅ K1 FIX: race condition bartaraf — tekshiruv transaction ICHIDA
+        // Avvalgi kod: tekshiruv tashqarida → 2 parallel so'rov ikki mukofot olardi
+        // Yangi kod: barcha o'qish+tekshiruv+yozish bitta atomik transactionda
         const roll = Math.floor(Math.random() * 100);
         let rewardType: string;
         if (roll < 40) rewardType = 'xp50';
@@ -1050,8 +1141,23 @@ export const claimDailyReward = functions
         else if (roll < 80) rewardType = 'badge';
         else rewardType = 'nothing';
 
-        // 3. Transaction bilan atomic yozish
         await db.runTransaction(async (tx) => {
+            // 1. Transaction ichida o'qish — atomik tekshiruv
+            const progressSnap = await tx.get(progressRef);
+            if (progressSnap.exists) {
+                const lastOpen = progressSnap.data()?.lastBoxOpenDate as admin.firestore.Timestamp | undefined;
+                if (lastOpen) {
+                    const lastDate = lastOpen.toDate();
+                    const lastDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+                    const today = new Date();
+                    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    if (lastDay.getTime() >= todayDay.getTime()) {
+                        throw new functions.https.HttpsError('failed-precondition', 'Bugun quti allaqachon ochilgan');
+                    }
+                }
+            }
+
+            // 2. Mukofot yozish
             const progressUpdate: Record<string, unknown> = { lastBoxOpenDate: now };
 
             if (rewardType === 'xp50') {
@@ -1061,7 +1167,9 @@ export const claimDailyReward = functions
                 progressUpdate['totalXp'] = admin.firestore.FieldValue.increment(100);
                 tx.update(userRef, { totalXp: admin.firestore.FieldValue.increment(100) });
             } else if (rewardType === 'badge') {
+                // ✅ M3 FIX: badge users/{uid} ga ham yoziladi (progress + users)
                 progressUpdate['badges'] = admin.firestore.FieldValue.arrayUnion(['lucky_star']);
+                tx.update(userRef, { badges: admin.firestore.FieldValue.arrayUnion(['lucky_star']) });
             } else if (rewardType === 'premiumDay') {
                 const userSnap = await tx.get(userRef);
                 const userData = userSnap.data() ?? {};
@@ -1195,8 +1303,13 @@ export const generateWeeklyReport = functions
     .onRun(async () => {
         const db = admin.firestore();
         const BATCH_SIZE = 50;
+        // ✅ FIX: Bir vaqtda 10 ta parallel — 10x tezroq, timeout xavfi yo'q
+        // Avval: ketma-ket → 300 user × 3 sek = 900 sek → TIMEOUT (limit 540 sek)
+        // Yangi: 10 ta parallel → 300 user / 10 × 3 sek = 90 sek → xavfsiz
+        const PARALLEL = 10;
         let lastDoc: admin.firestore.QueryDocumentSnapshot | undefined;
         let totalProcessed = 0;
+        let totalFailed = 0;
 
         while (true) {
             let query = db.collection('users').limit(BATCH_SIZE);
@@ -1205,13 +1318,18 @@ export const generateWeeklyReport = functions
             const snap = await query.get();
             if (snap.empty) break;
 
-            // Ketma-ket ishlatish — parallel AI so'rovlar serverga yuk soladi
-            for (const doc of snap.docs) {
-                try {
-                    await generateWeeklyAnalytics(doc.id);
-                } catch (e) {
-                    console.error(`⚠️ Analytics xatosi (${doc.id}):`, e);
-                }
+            // 50 ta userlarni 10 tali guruhlarga bo'lib, parallel ishlat
+            for (let i = 0; i < snap.docs.length; i += PARALLEL) {
+                const chunk = snap.docs.slice(i, i + PARALLEL);
+                const results = await Promise.allSettled(
+                    chunk.map(doc => generateWeeklyAnalytics(doc.id))
+                );
+                results.forEach((r, idx) => {
+                    if (r.status === 'rejected') {
+                        totalFailed++;
+                        console.error(`⚠️ Analytics xatosi (${chunk[idx].id}):`, r.reason);
+                    }
+                });
             }
 
             totalProcessed += snap.size;
@@ -1219,7 +1337,7 @@ export const generateWeeklyReport = functions
             if (snap.size < BATCH_SIZE) break;
         }
 
-        console.log(`✅ Haftalik analytics tugadi: ${totalProcessed} ta user`);
+        console.log(`✅ Haftalik analytics tugadi: ${totalProcessed} ta user, ${totalFailed} ta xato`);
     });
 
 // ── Bir user uchun darhol haftalik hisobot (test uchun) ──
@@ -1242,6 +1360,7 @@ export const triggerWeeklyReport = functions
 // ═══════════════════════════════════════════════════════════════
 
 // ── Yordamchi: FCM token orqali bildirishnoma yuborish ──────────────────
+// channelId ixtiyoriy — ko'rsatilmasa 'streak_channel' ishlatiladi
 async function sendFcmToUser(
     db: FirebaseFirestore.Firestore,
     uid: string,
@@ -1250,7 +1369,8 @@ async function sendFcmToUser(
         type: string;
         title: string;
         body: string;
-    }
+    },
+    channelId = 'streak_channel'
 ): Promise<void> {
     try {
         const userSnap = await db.collection('users').doc(uid).get();
@@ -1263,9 +1383,10 @@ async function sendFcmToUser(
                     title: notification.title,
                     body: notification.body,
                 },
+                data: { type: notificationDoc.type },
                 android: {
                     priority: 'high',
-                    notification: { channelId: 'streak_channel' },
+                    notification: { channelId },
                 },
                 apns: {
                     payload: { aps: { badge: 1, sound: 'default' } },

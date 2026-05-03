@@ -72,6 +72,15 @@ export interface FullStats {
     };
 }
 
+export interface WrongAnswerExplanation {
+    question: string;
+    userAnswer: string;
+    correctAnswer: string;
+    whyWrong: string;       // O'qituvchi kabi: nima uchun bu javob noto'g'ri
+    whyCorrect: string;     // Nima uchun bu javob to'g'ri
+    simpleExplanation: string; // Sodda rejim uchun
+}
+
 export interface PremiumCoachResponse {
     personalAnalysis: string;
     weakPoints: string[];
@@ -80,6 +89,7 @@ export interface PremiumCoachResponse {
     weeklyPlan: string;
     stats: FullStats;
     exercises: GeneratedExercise[];
+    wrongAnswerExplanations: WrongAnswerExplanation[]; // ✅ YANGI
 }
 
 export interface GeneratedExercise {
@@ -451,6 +461,13 @@ Zaif mavzular: ${weakTopics.slice(0, 4).join(', ') || 'aniqlanmagan'}
 Zaif grammatika: ${weeklySkillStats.weakGrammar.slice(0, 3).join(', ') || 'aniqlanmagan'}
 Streak: ${stats.overall.streakDays} kun`.trim();
 
+    // Noto'g'ri javoblar bloki (prompt uchun)
+    const wrongAnswersBlock = sessionData?.wrongAnswers && sessionData.wrongAnswers.length > 0
+        ? `\nNOTO'G'RI JAVOBLAR (har birini o'qituvchi kabi tushuntir):\n${sessionData.wrongAnswers.slice(0, 6).map((w, i) =>
+            `  ${i + 1}. Savol: "${w.question ?? '?'}" | Berilgan: "${w.userAnswer ?? '?'}" | To'g'ri: "${w.correctAnswer ?? '?'}"`
+        ).join('\n')}`
+        : '';
+
     const analysisPrompt = `Sen So'zona premium AI murabbiyisan. O'zbek tilida javob ber.
 
 O'QUVCHI: ${studentName}, ${langName} tili, ${level} daraja
@@ -462,11 +479,7 @@ Mavzu: ${sessionData.topic ?? 'Noma\'lum'}
 Jami savollar: ${sessionData.totalQuestions ?? '—'}
 To'g'ri javoblar: ${sessionData.correctCount ?? '—'}
 Noto'g'ri javoblar: ${sessionData.wrongCount ?? '—'}
-${sessionData.wrongAnswers && sessionData.wrongAnswers.length > 0
-                ? `Noto'g'ri javoblar tafsiloti:\n${sessionData.wrongAnswers.slice(0, 5).map((w, i) =>
-                    `  ${i + 1}. Savol: "${w.question ?? '?'}" | Berilgan: "${w.userAnswer ?? '?'}" | To'g'ri: "${w.correctAnswer ?? '?'}"`
-                ).join('\n')}`
-                : ''}
+${wrongAnswersBlock}
 ${sessionData.transcribedText ? `O'quvchi gapirgan matn: "${sessionData.transcribedText}"` : ''}
 ${sessionData.grammarErrors && sessionData.grammarErrors.length > 0 ? `Grammatika xatolari: ${sessionData.grammarErrors.join(', ')}` : ''}
 ${sessionData.ieltsBand ? `IELTS bandi: ${sessionData.ieltsBand}` : ''}
@@ -488,8 +501,24 @@ Faqat JSON qaytargil (o'zbekcha):
   ],
   "scientificMethod": "Oxford/Cambridge/Harvard usuli 2-3 gap, nima qilish kerak aniq.",
   "motivation": "1-2 gap jonli motivatsiya emoji bilan",
-  "weeklyPlan": "Du: ..., Se: ..., Ch: ..., Pa: ..., Sh: ... (qisqa, aniq)"
-}`;
+  "weeklyPlan": "Du: ..., Se: ..., Ch: ..., Pa: ..., Sh: ... (qisqa, aniq)",
+  "wrongAnswerExplanations": [
+    {
+      "question": "savol matni (yuqoridagi noto'g'ri javoblar ro'yxatidan)",
+      "userAnswer": "o'quvchi bergan javob",
+      "correctAnswer": "to'g'ri javob",
+      "whyWrong": "Bu javob noto'g'ri, chunki... [grammatik yoki mantiqiy tushuntirish, kerak bo'lsa qisqa misol bilan]",
+      "whyCorrect": "To'g'ri javob bu, chunki... [nima uchun aynan shu to'g'ri ekanligi, qoida yoki misol bilan]",
+      "simpleExplanation": "Sodda qilib aytganda: ... [eng qisqa va tushunarli tushuntirish, kundalik hayotdan misol]"
+    }
+  ]
+}
+
+MUHIM QOIDALAR:
+1. wrongAnswerExplanations da FAQAT haqiqatan noto'g'ri javoblangan savollarni ko'rsat
+2. Har bir tushuntirish real o'qituvchi kabi — aniq, qisqa, misol bilan
+3. Listening/Speaking uchun grammatika va talaffuz xatolarini ham tushuntir
+4. wrongAnswers bo'lmasa yoki sessiya yo'q bo'lsa — wrongAnswerExplanations ni bo'sh massiv qilib qo'y []`;
 
     let analysis = {
         personalAnalysis: `${studentName}, ${langName} tilida haftalik o'rtacha ${stats.overall.weekly}% natija ko'rsatyapsiz.`,
@@ -502,10 +531,11 @@ Faqat JSON qaytargil (o'zbekcha):
         scientificMethod: 'Cambridge tadqiqotlariga ko\'ra, kuniga 20-30 daqiqa muntazam mashq samaraliroq.',
         motivation: `${studentName}, har bir qadam muvaffaqiyatga yaqinlashtiradi! 💪`,
         weeklyPlan: 'Du: Quiz, Se: Listening, Ch: Flashcard, Pa: Speaking, Sh: Takrorlash',
+        wrongAnswerExplanations: [] as WrongAnswerExplanation[],
     };
 
     try {
-        const resp = await aiRouter({ prompt: analysisPrompt, maxTokens: 900, temperature: 0.75 });
+        const resp = await aiRouter({ prompt: analysisPrompt, maxTokens: 2000, temperature: 0.75 });
         const parsed = JSON.parse(resp.text.replace(/```json|```/g, '').trim()) as typeof analysis;
         analysis = {
             personalAnalysis: parsed.personalAnalysis ?? analysis.personalAnalysis,
@@ -513,6 +543,7 @@ Faqat JSON qaytargil (o'zbekcha):
             scientificMethod: parsed.scientificMethod ?? analysis.scientificMethod,
             motivation: parsed.motivation ?? analysis.motivation,
             weeklyPlan: parsed.weeklyPlan ?? analysis.weeklyPlan,
+            wrongAnswerExplanations: (parsed.wrongAnswerExplanations ?? []).slice(0, 6) as WrongAnswerExplanation[],
         };
     } catch (e) {
         console.error('⚠️ AI tahlil xatosi:', e);
@@ -526,6 +557,7 @@ Faqat JSON qaytargil (o'zbekcha):
         weeklyPlan: analysis.weeklyPlan,
         stats,
         exercises: generatedExercises,
+        wrongAnswerExplanations: analysis.wrongAnswerExplanations,
     };
 }
 

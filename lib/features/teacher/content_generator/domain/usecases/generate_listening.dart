@@ -34,6 +34,7 @@ class GenerateListening
       topic: params.topic,
       duration: params.duration,
       questionCount: params.questionCount,
+      grammar: params.grammar,
     );
   }
 
@@ -88,6 +89,7 @@ class GenerateListeningParams {
   final String topic; // Mavzu
   final int duration; // Taxminiy audio davomiyligi (soniyalarda)
   final int questionCount; // Savol soni
+  final String grammar; // ✅ FIX: Grammatika mavzusi (ixtiyoriy)
 
   const GenerateListeningParams({
     required this.language,
@@ -95,6 +97,7 @@ class GenerateListeningParams {
     required this.topic,
     this.duration = 120, // Default: 2 daqiqa
     this.questionCount = 5, // Default: 5 ta savol
+    this.grammar = '', // Default: bo'sh
   });
 
   /// Copy with
@@ -104,6 +107,7 @@ class GenerateListeningParams {
     String? topic,
     int? duration,
     int? questionCount,
+    String? grammar,
   }) {
     return GenerateListeningParams(
       language: language ?? this.language,
@@ -111,6 +115,7 @@ class GenerateListeningParams {
       topic: topic ?? this.topic,
       duration: duration ?? this.duration,
       questionCount: questionCount ?? this.questionCount,
+      grammar: grammar ?? this.grammar,
     );
   }
 

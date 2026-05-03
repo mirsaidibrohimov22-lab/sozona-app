@@ -34,14 +34,12 @@ class ClassDetailScreen extends ConsumerWidget {
     final selectedClass = ref.watch(selectedClassProvider);
 
     return Scaffold(
-      
       body: CustomScrollView(
         slivers: [
           // ─── AppBar ───
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
@@ -224,7 +222,7 @@ class _ClassHeaderBackground extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Dekorativ doira
+          // Dekorativ doira (dekorativ — overflow olmaydi, Positioned bilan)
           Positioned(
             right: -30,
             top: -30,

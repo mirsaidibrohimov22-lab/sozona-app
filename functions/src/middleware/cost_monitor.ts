@@ -1,14 +1,19 @@
 // functions/src/middleware/cost_monitor.ts
-// SO'ZONA — Cost Monitor (YANGILANGAN)
-// ✅ Gemini 2.0 Flash narxi qo'shildi
+// SO'ZONA — Cost Monitor
+// ✅ FIX: gemini-2.5-flash narxi qo'shildi (haqiqiy model)
+// ✅ FIX: default fallback ham gemini-2.5-flash ga ko'chirildi
 
 import * as admin from 'firebase-admin';
 
-// Gemini 2.0 Flash — juda arzon (1M token uchun)
+// Gemini narxlari (1M token uchun)
 const PRICING: Record<string, { input: number; output: number }> = {
+    'gemini-2.5-flash': {
+        input: 0.15 / 1_000_000,   // $0.15 per 1M input tokens
+        output: 0.60 / 1_000_000,  // $0.60 per 1M output tokens
+    },
     'gemini-2.0-flash': {
-        input: 0.10 / 1_000_000,   // $0.10 per 1M input tokens
-        output: 0.40 / 1_000_000,  // $0.40 per 1M output tokens
+        input: 0.10 / 1_000_000,
+        output: 0.40 / 1_000_000,
     },
     'gemini-1.5-flash': {
         input: 0.075 / 1_000_000,
@@ -37,7 +42,7 @@ export function calculateCost(
     promptTokens: number,
     completionTokens: number
 ): number {
-    const pricing = PRICING[model] ?? PRICING['gemini-2.0-flash'];
+    const pricing = PRICING[model] ?? PRICING['gemini-2.5-flash'];
     return promptTokens * pricing.input + completionTokens * pricing.output;
 }
 

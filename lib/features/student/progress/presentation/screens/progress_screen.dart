@@ -381,33 +381,39 @@ class _ActivityChartCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            chartAsync.when(
-              loading: () => const SizedBox(
-                  height: 120,
-                  child: Center(child: CircularProgressIndicator())),
-              error: (e, _) => const SizedBox(
-                  height: 60, child: Center(child: Text('Grafik yuklanmadi'))),
-              data: (points) {
-                if (points.isEmpty || points.every((p) => p.xpEarned == 0)) {
-                  return const SizedBox(
-                    height: 100,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bar_chart_outlined,
-                              size: 36, color: Colors.grey),
-                          SizedBox(height: 8),
-                          Text('Hali faollik yo\'q',
-                              style: TextStyle(color: Colors.grey)),
-                        ],
+            Builder(builder: (context) {
+              // ✅ RESPONSIVE FIX: adaptive placeholder heights
+              final screenH = MediaQuery.of(context).size.height;
+              final placeholderH = (screenH * 0.18).clamp(100.0, 150.0);
+              return chartAsync.when(
+                loading: () => SizedBox(
+                    height: placeholderH,
+                    child: const Center(child: CircularProgressIndicator())),
+                error: (e, _) => SizedBox(
+                    height: placeholderH * 0.5,
+                    child: const Center(child: Text('Grafik yuklanmadi'))),
+                data: (points) {
+                  if (points.isEmpty || points.every((p) => p.xpEarned == 0)) {
+                    return SizedBox(
+                      height: placeholderH,
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.bar_chart_outlined,
+                                size: 36, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text('Hali faollik yo\'q',
+                                style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }
-                return _BarChart(points: points);
-              },
-            ),
+                    );
+                  }
+                  return _BarChart(points: points);
+                },
+              );
+            }),
           ],
         ),
       ),
@@ -421,21 +427,27 @@ class _BarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ RESPONSIVE FIX: adaptive bar chart balandligi
+    // iPhone SE (667px) → 120px, S24 (900px) → 160px
+    final screenH = MediaQuery.of(context).size.height;
+    final chartH = (screenH * 0.18).clamp(110.0, 160.0);
+    final barMaxH = chartH - 30; // label va raqam uchun joy
+
     final maxXp = points.fold(0.0, (m, p) => p.xpEarned > m ? p.xpEarned : m);
     if (maxXp == 0)
-      return const SizedBox(
-          height: 100,
-          child: Center(
+      return SizedBox(
+          height: chartH,
+          child: const Center(
               child: Text('Ma\'lumot yo\'q',
                   style: TextStyle(color: Colors.grey))));
 
     return SizedBox(
-      height: 150,
+      height: chartH,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: points.map((point) {
           final ratio = maxXp > 0 ? point.xpEarned / maxXp : 0.0;
-          final barH = ratio * 100;
+          final barH = ratio * barMaxH;
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -449,7 +461,7 @@ class _BarChart extends StatelessWidget {
                   const SizedBox(height: 2),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 600),
-                    height: barH.clamp(4.0, 100.0),
+                    height: barH.clamp(4.0, barMaxH),
                     decoration: BoxDecoration(
                       color: point.xpEarned > 0
                           ? AppColors.primary
@@ -482,7 +494,8 @@ class _RecentActivityList extends StatelessWidget {
   Widget build(BuildContext context) {
     return recentAsync.when(
       loading: () => const SizedBox(
-          height: 60, child: Center(child: CircularProgressIndicator())),
+          height: 48,
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
       error: (_, __) => const SizedBox.shrink(),
       data: (activities) {
         if (activities.isEmpty) {

@@ -50,6 +50,34 @@ class PremiumExercise {
   String get durationText => '$duration daqiqa';
 }
 
+class WrongAnswerExplanation {
+  final String question;
+  final String userAnswer;
+  final String correctAnswer;
+  final String whyWrong;
+  final String whyCorrect;
+  final String simpleExplanation;
+
+  const WrongAnswerExplanation({
+    required this.question,
+    required this.userAnswer,
+    required this.correctAnswer,
+    required this.whyWrong,
+    required this.whyCorrect,
+    required this.simpleExplanation,
+  });
+
+  factory WrongAnswerExplanation.fromMap(Map<String, dynamic> m) =>
+      WrongAnswerExplanation(
+        question: m['question'] as String? ?? '',
+        userAnswer: m['userAnswer'] as String? ?? '',
+        correctAnswer: m['correctAnswer'] as String? ?? '',
+        whyWrong: m['whyWrong'] as String? ?? '',
+        whyCorrect: m['whyCorrect'] as String? ?? '',
+        simpleExplanation: m['simpleExplanation'] as String? ?? '',
+      );
+}
+
 class PremiumCoachResult {
   final String personalAnalysis;
   final List<String> weakPoints;
@@ -57,6 +85,7 @@ class PremiumCoachResult {
   final List<PremiumExercise> exercises;
   final String motivation;
   final String weeklyPlan;
+  final List<WrongAnswerExplanation> wrongAnswerExplanations; // ✅ YANGI
 
   const PremiumCoachResult({
     required this.personalAnalysis,
@@ -65,12 +94,19 @@ class PremiumCoachResult {
     required this.exercises,
     required this.motivation,
     required this.weeklyPlan,
+    this.wrongAnswerExplanations = const [],
   });
 
   factory PremiumCoachResult.fromMap(Map<String, dynamic> map) {
     final exercisesList = (map['exercises'] as List<dynamic>? ?? [])
         .map(
             (e) => PremiumExercise.fromMap(Map<String, dynamic>.from(e as Map)))
+        .toList();
+
+    final explanations = (map['wrongAnswerExplanations'] as List<dynamic>? ??
+            [])
+        .map((e) =>
+            WrongAnswerExplanation.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
 
     return PremiumCoachResult(
@@ -80,6 +116,7 @@ class PremiumCoachResult {
       exercises: exercisesList,
       motivation: map['motivation'] as String? ?? '',
       weeklyPlan: map['weeklyPlan'] as String? ?? '',
+      wrongAnswerExplanations: explanations,
     );
   }
 }

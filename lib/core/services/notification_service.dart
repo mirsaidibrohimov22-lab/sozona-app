@@ -106,12 +106,23 @@ class NotificationService {
         importance: Importance.high,
       );
 
+      // ✅ YANGI: premium tugash ogohlantirishi uchun kanal
+      const AndroidNotificationChannel premiumChannel =
+          AndroidNotificationChannel(
+        'premium_channel',
+        'Premium bildirishnomalari',
+        description:
+            'Premium tarif tugashi va yangilash haqida ogohlantirishlar',
+        importance: Importance.high,
+      );
+
       final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
           _localNotifications.resolvePlatformSpecificImplementation();
       await androidPlugin?.createNotificationChannel(channel);
       await androidPlugin?.createNotificationChannel(reminderChannel);
       await androidPlugin?.createNotificationChannel(streakChannel);
       await androidPlugin?.createNotificationChannel(leaderboardChannel);
+      await androidPlugin?.createNotificationChannel(premiumChannel);
     } catch (e) {
       debugPrint('⚠️ Local notifications setup xatosi: $e');
     }
@@ -157,13 +168,15 @@ class NotificationService {
     switch (type) {
       case 'streak_milestone':
       case 'achievement':
+      case 'streak':
         return 'streak_channel';
       case 'leaderboard_top3':
       case 'leaderboard_overtaken':
       case 'leaderboard_winner':
         return 'leaderboard_channel';
-      case 'streak':
-        return 'streak_channel';
+      case 'premium_expiry':
+      case 'premium_activated':
+        return 'premium_channel';
       default:
         return 'teacher_content';
     }
@@ -179,6 +192,9 @@ class NotificationService {
       case 'leaderboard_overtaken':
       case 'leaderboard_winner':
         return 'Leaderboard';
+      case 'premium_expiry':
+      case 'premium_activated':
+        return 'Premium bildirishnomalari';
       default:
         return 'O\'qituvchi kontentlari';
     }
@@ -204,6 +220,9 @@ class NotificationService {
         break;
       case 'premium_activated':
         GoRouter.of(context).push(RoutePaths.premium);
+        break;
+      case 'premium_expiry':
+        GoRouter.of(context).push(RoutePaths.premiumExpired);
         break;
       default:
         break;
@@ -280,6 +299,9 @@ class NotificationService {
           break;
         case 'premium_activated':
           GoRouter.of(context).push(RoutePaths.premium);
+          break;
+        case 'premium_expiry':
+          GoRouter.of(context).push(RoutePaths.premiumExpired);
           break;
         default:
           // flashcard payload: 'flashcard:folderId:cardId'

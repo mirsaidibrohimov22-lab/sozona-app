@@ -61,6 +61,7 @@ abstract class ContentGeneratorRepository {
   /// - topic: Mavzu
   /// - duration: Taxminiy audio davomiyligi (soniyalarda, default: 120)
   /// - questionCount: Savol soni (default: 5)
+  /// - grammar: Grammatika mavzusi (ixtiyoriy, masalan: "present perfect")
   ///
   /// Returns:
   /// - Right(GeneratedContent): Muvaffaqiyatli yaratilgan listening
@@ -73,6 +74,7 @@ abstract class ContentGeneratorRepository {
     required String topic,
     int duration = 120,
     int questionCount = 5,
+    String grammar = '',
   });
 
   /// Yaratilgan kontentni preview qilish uchun olish

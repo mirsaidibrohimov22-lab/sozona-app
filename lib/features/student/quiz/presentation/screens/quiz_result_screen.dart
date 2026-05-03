@@ -1,7 +1,7 @@
 // lib/features/student/quiz/presentation/screens/quiz_result_screen.dart
-// So'zona — Quiz natijasi ekrani
 // ✅ 1-KUN FIX: '/student/quiz' → RoutePaths.quiz
 // ✅ FIX: AI Murabbiy tugmasi qo'shildi (premium foydalanuvchilar uchun)
+// ✅ RESPONSIVE FIX: width/height: 160 → (screenH * 0.20).clamp(120, 170) adaptive
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +31,12 @@ class QuizResultScreen extends ConsumerWidget {
       );
     }
 
+    // ✅ Adaptive circle: iPhone SE (667px) → 120px, S24 (900px) → 160px
+    final screenH = MediaQuery.of(context).size.height;
+    final circleSize = (screenH * 0.20).clamp(120.0, 170.0);
+    final emojiSize = circleSize * 0.26;
+    final pctFontSize = (circleSize * 0.20).clamp(24.0, 34.0);
+
     final pct = attempt.percentage;
     final passed = attempt.passed;
     final emoji = pct >= 90
@@ -54,12 +60,14 @@ class QuizResultScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, MediaQuery.of(context).padding.bottom + 24),
         child: Column(
           children: [
+            // ✅ Adaptive circle
             Container(
-              width: 160,
-              height: 160,
+              width: circleSize,
+              height: circleSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: (passed ? AppColors.success : AppColors.error)
@@ -72,11 +80,11 @@ class QuizResultScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(emoji, style: const TextStyle(fontSize: 40)),
+                  Text(emoji, style: TextStyle(fontSize: emojiSize)),
                   Text(
                     '${pct.round()}%',
                     style: TextStyle(
-                      fontSize: 32,
+                      fontSize: pctFontSize,
                       fontWeight: FontWeight.bold,
                       color: passed ? AppColors.success : AppColors.error,
                     ),
@@ -134,7 +142,7 @@ class QuizResultScreen extends ConsumerWidget {
               label: 'Quizlarga qaytish',
               onPressed: () => context.go(RoutePaths.quiz),
             ),
-            // ✅ FIX: Premium AI Murabbiy tugmasi
+            // ✅ Premium AI Murabbiy tugmasi
             if (ref.watch(hasPremiumProvider)) ...[
               const SizedBox(height: 12),
               SizedBox(
@@ -146,7 +154,6 @@ class QuizResultScreen extends ConsumerWidget {
                         trigger: 'after_lesson',
                         skillType: 'quiz',
                         lastScore: attempt.percentage,
-                        // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
                         sessionData: {
                           'topic': attempt.quizTitle,
                           'totalQuestions': attempt.answers.length,

@@ -2,6 +2,7 @@
 // So'zona — App entry point
 // ✅ FIX v2: Qora ekran muammosi hal qilindi.
 // ✅ FIX v3: flutter_foreground_task initCommunicationPort qo'shildi
+// ✅ FIX v4: StorageService singleton — faqat bitta instance, provider bilan mos
 
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -59,11 +60,14 @@ void main() async {
     debugPrint('❌ Firebase init xatosi: $e\n$stack');
   }
 
-  // 2. Hive — lokal, tez, kerak
+  // 2. Hive + StorageService
+  // ✅ FIX v4: storageInstance — bitta instance, provider ham shu instanceni ishlatadi.
+  // Avvalgi: StorageService() yangi instance → storageServiceProvider boshqa instance.
+  // Yangi:   ProviderScope override orqali ikkalasi ham bir xil object.
+  final StorageService storageInstance = StorageService();
   try {
     await Hive.initFlutter();
-    // ✅ FIX: settings va cache boxlarini och
-    await StorageService().init();
+    await storageInstance.init();
     debugPrint('✅ Hive initialized');
   } catch (e) {
     debugPrint('⚠️ Hive xatosi: $e');
@@ -107,6 +111,8 @@ void main() async {
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        // ✅ FIX v4: provider ham xuddi shu init qilingan instanceni ishlatadi
+        storageServiceProvider.overrideWithValue(storageInstance),
       ],
       child: SozonaApp(firebaseReady: firebaseOk),
     ),

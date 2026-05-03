@@ -32,6 +32,7 @@ abstract class ContentGeneratorRemoteDataSource {
     required String topic,
     required int duration,
     required int questionCount,
+    String grammar = '',
   });
 }
 
@@ -134,6 +135,7 @@ class ContentGeneratorRemoteDataSourceImpl
     required String topic,
     required int duration,
     required int questionCount,
+    String grammar = '',
   }) async {
     try {
       debugPrint(
@@ -148,6 +150,7 @@ class ContentGeneratorRemoteDataSourceImpl
         'topic': topic,
         'duration': duration,
         'questionCount': questionCount,
+        'grammar': grammar,
       });
       final data = result.data as Map<String, dynamic>;
       if (data['error'] != null) throw Exception(data['error']);

@@ -1,24 +1,18 @@
-// lib/features/onboarding/presentation/widgets/onboarding_page.dart
+// lib/features/auth/presentation/widgets/onboarding_page.dart
 // So'zona — Bitta onboarding sahifasi widgeti
-// Ikonka + sarlavha + tavsif
+// ✅ RESPONSIVE FIX:
+//   - height: 140 (fixed) → (screenH * 0.16).clamp(100, 150) (adaptive)
+//   - description text: maxLines + ellipsis qo'shildi
 
 import 'package:flutter/material.dart';
-
 import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/core/constants/app_sizes.dart';
 
 /// Onboarding sahifa ma'lumotlari
 class OnboardingPageData {
-  /// Sahifa ikonkasi
   final IconData icon;
-
-  /// Sarlavha
   final String title;
-
-  /// Tavsif matni
   final String description;
-
-  /// Rang (ikonka foni)
   final Color color;
 
   const OnboardingPageData({
@@ -31,7 +25,6 @@ class OnboardingPageData {
 
 /// Bitta onboarding sahifasi
 class OnboardingPage extends StatelessWidget {
-  /// Sahifa ma'lumotlari
   final OnboardingPageData data;
 
   const OnboardingPage({
@@ -41,22 +34,26 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    // ✅ Adaptive: iPhone SE (667px) → 107px, S24 (900px) → 144px
+    final iconCircleSize = (screenHeight * 0.16).clamp(100.0, 150.0);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.spacingXl),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Ikonka doirasi
+          // Ikonka doirasi — adaptive o'lcham
           Container(
-            width: 140,
-            height: 140,
+            width: iconCircleSize,
+            height: iconCircleSize,
             decoration: BoxDecoration(
               color: data.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
               data.icon,
-              size: 64,
+              size: iconCircleSize * 0.46,
               color: data.color,
             ),
           ),
@@ -71,6 +68,8 @@ class OnboardingPage extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
 
           const SizedBox(height: AppSizes.spacingMd),
@@ -83,6 +82,9 @@ class OnboardingPage extends StatelessWidget {
                   height: 1.5,
                 ),
             textAlign: TextAlign.center,
+            // ✅ maxLines qo'shildi — kichik ekranda overflow bo'lmaydi
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

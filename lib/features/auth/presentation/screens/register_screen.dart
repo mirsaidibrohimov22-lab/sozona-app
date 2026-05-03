@@ -1,5 +1,10 @@
 // lib/features/auth/presentation/screens/register_screen.dart
-// So'zona — Ro'yxatdan o'tish ekrani (yangi dizayn)
+// So'zona — Ro'yxatdan o'tish ekrani
+// ✅ RESPONSIVE FIX:
+//   - Header: height yo'q edi (SafeArea+Padding bilan) — bu to'g'ri, o'zgarmadi
+//   - Form: Expanded + SingleChildScrollView + keyboardDismissBehavior
+//   - Tugmalar: height: 54 → 52
+//   - Bottom: MediaQuery.padding.bottom qo'shildi
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,7 +67,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       backgroundColor: AppColors.bgPrimary,
       body: Column(
         children: [
-          // ── Gradient Header (kichikroq) ──
+          // ── Gradient Header ── (height yo'q — SafeArea avtomatik hisoblaydi)
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -118,31 +123,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
 
-          // ── Form ──
+          // ── Form ── Expanded + SingleChildScrollView = overflow yo'q
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Xatolik
+                    // Xatolik xabari
                     if (authState.failure != null)
                       Container(
-                        padding: const EdgeInsets.all(14),
-                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
                           color: AppColors.errorLight,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: AppColors.error.withValues(alpha: 0.3)),
+                            color: AppColors.error.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
                             const Icon(Icons.error_outline,
-                                color: AppColors.error, size: 20),
-                            const SizedBox(width: 10),
+                                color: AppColors.error, size: 18),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 authState.failure!.message,
@@ -166,7 +173,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           return 'Ism kiritilishi shart';
                         }
                         if (value.trim().length < 2) {
-                          return 'Ism kamida 2 ta belgidan iborat bo\'lishi kerak';
+                          return "Ism kamida 2 ta belgidan iborat bo'lishi kerak";
                         }
                         return null;
                       },
@@ -187,7 +194,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         final emailRegex =
                             RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                         if (!emailRegex.hasMatch(value.trim())) {
-                          return 'Email formati noto\'g\'ri';
+                          return "Email formati noto'g'ri";
                         }
                         return null;
                       },
@@ -208,9 +215,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               : Icons.visibility_outlined,
                           color: AppColors.textSecondary,
                         ),
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -245,10 +251,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               : Icons.visibility_outlined,
                           color: AppColors.textSecondary,
                         ),
-                        onPressed: () {
-                          setState(() => _obscureConfirmPassword =
-                              !_obscureConfirmPassword);
-                        },
+                        onPressed: () => setState(() =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -260,11 +264,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
-                    // Ro'yxatdan o'tish tugmasi — gradient
+                    // Ro'yxatdan o'tish tugmasi
                     Container(
-                      height: 54,
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF2DD4BF), Color(0xFF6C63FF)],
@@ -285,7 +289,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         child: authState.isLoading
                             ? const SizedBox(
@@ -295,7 +300,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     strokeWidth: 2.5, color: Colors.white),
                               )
                             : const Text(
-                                'Ro\'yxatdan o\'tish',
+                                "Ro'yxatdan o'tish",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
@@ -304,8 +309,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                       ),
                     ),
-
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
                     // Kirish havolasi
                     Row(
@@ -324,6 +328,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                       ],
                     ),
+
+                    // ✅ Bottom safe area
+                    SizedBox(
+                        height: MediaQuery.of(context).padding.bottom + 16),
                   ],
                 ),
               ),

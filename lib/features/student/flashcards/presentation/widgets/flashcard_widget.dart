@@ -1,18 +1,18 @@
 // lib/features/student/flashcards/presentation/widgets/flashcard_widget.dart
 // So'zona — Flashcard flip widget
+// ✅ RESPONSIVE FIX:
+//   - height: 260 (fixed) → (screenH * 0.30).clamp(200, 300) (adaptive)
+//   - FittedBox qo'shildi — uzun so'zlar kichrayib sig'adi
+//   - height parent dan o'tkazildi — rebuild minimal
+
 import 'package:flutter/material.dart';
 import 'package:my_first_app/core/constants/app_colors.dart';
 import 'package:my_first_app/features/student/flashcards/domain/entities/flashcard_entity.dart';
 
 /// Flashcard widget — old va orqa tomonni ko'rsatadi
 class FlashcardWidget extends StatelessWidget {
-  /// Kartochka ma'lumotlari
   final FlashcardEntity card;
-
-  /// Kartochka ag'darilganmi?
   final bool isFlipped;
-
-  /// Bosilganda chaqiriladigan funksiya
   final VoidCallback onTap;
 
   const FlashcardWidget({
@@ -24,6 +24,10 @@ class FlashcardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Adaptive height: iPhone SE (667px) → 200px, S24 (900px) → 270px
+    final cardHeight =
+        (MediaQuery.of(context).size.height * 0.30).clamp(200.0, 300.0);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedSwitcher(
@@ -31,8 +35,16 @@ class FlashcardWidget extends StatelessWidget {
         transitionBuilder: (child, anim) =>
             RotationYTransition(turns: anim, child: child),
         child: isFlipped
-            ? _Back(card: card, key: const ValueKey('back'))
-            : _Front(card: card, key: const ValueKey('front')),
+            ? _Back(
+                card: card,
+                cardHeight: cardHeight,
+                key: const ValueKey('back'),
+              )
+            : _Front(
+                card: card,
+                cardHeight: cardHeight,
+                key: const ValueKey('front'),
+              ),
       ),
     );
   }
@@ -41,13 +53,15 @@ class FlashcardWidget extends StatelessWidget {
 /// Old tomon — o'rganiladigan so'z
 class _Front extends StatelessWidget {
   final FlashcardEntity card;
-  const _Front({super.key, required this.card});
+  final double cardHeight;
+
+  const _Front({super.key, required this.card, required this.cardHeight});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 260,
+      height: cardHeight,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.primary, Color(0xFF7C3AED)],
@@ -63,30 +77,39 @@ class _Front extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            card.front,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // ✅ FittedBox — uzun so'z kichrayib sig'adi, overflow yo'q
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                card.front,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          if (card.pronunciation != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              '[${card.pronunciation}]',
-              style: const TextStyle(fontSize: 16, color: Colors.white70),
+            if (card.pronunciation != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '[${card.pronunciation}]',
+                style: const TextStyle(fontSize: 15, color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Text(
+              "Bosib teskari tomonni ko'ring",
+              style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
-          const SizedBox(height: 20),
-          const Text(
-            'Bosib teskari tomonni ko\'ring',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -95,13 +118,15 @@ class _Front extends StatelessWidget {
 /// Orqa tomon — tarjima va misol
 class _Back extends StatelessWidget {
   final FlashcardEntity card;
-  const _Back({super.key, required this.card});
+  final double cardHeight;
+
+  const _Back({super.key, required this.card, required this.cardHeight});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      height: 260,
+      height: cardHeight,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -122,23 +147,31 @@ class _Back extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              card.back,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+            // ✅ FittedBox — uzun tarjima sig'adi
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                card.back,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
             if (card.example != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 8),
               Text(
                 card.example!,
                 textAlign: TextAlign.center,
+                // ✅ maxLines + ellipsis — uzun misol sig'adi
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: Colors.grey.shade600,
                   fontStyle: FontStyle.italic,
                 ),

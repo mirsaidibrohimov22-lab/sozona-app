@@ -52,19 +52,23 @@ class StudentClassListScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.school_outlined,
-                      size: 52,
-                      color: AppColors.primary,
-                    ),
-                  ),
+                  Builder(builder: (ctx) {
+                    final s = (MediaQuery.of(ctx).size.height * 0.13)
+                        .clamp(80.0, 110.0);
+                    return Container(
+                      width: s,
+                      height: s,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.school_outlined,
+                        size: s * 0.52,
+                        color: AppColors.primary,
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 24),
                   Text(
                     'Hech qanday sinfga\nqo\'shilmagansiz',
