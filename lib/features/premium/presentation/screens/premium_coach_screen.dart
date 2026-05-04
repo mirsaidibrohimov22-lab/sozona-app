@@ -58,6 +58,10 @@ class _PremiumCoachScreenState extends ConsumerState<PremiumCoachScreen> {
   @override
   Widget build(BuildContext context) {
     final coachState = ref.watch(premiumCoachProvider);
+    // FIX: public field lar local variable ga olinadi
+    // Dart public property larni null check dan keyin promote qilmaydi
+    final coachResult = coachState.result;
+    final coachError = coachState.error;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A1A),
@@ -83,10 +87,10 @@ class _PremiumCoachScreenState extends ConsumerState<PremiumCoachScreen> {
       body: SafeArea(
         child: coachState.isLoading
             ? _buildLoading()
-            : coachState.error != null
-                ? _buildError(coachState.error!)
-                : coachState.result != null
-                    ? _buildResult(coachState.result!)
+            : coachError != null
+                ? _buildError(coachError)
+                : coachResult != null
+                    ? _buildResult(coachResult)
                     : _buildLoading(),
       ),
     );
@@ -595,6 +599,53 @@ class _PremiumCoachScreenState extends ConsumerState<PremiumCoachScreen> {
                             ],
                           ),
                         ] else ...[
+                          // ✅ YANGI: Grammatik qoida badge
+                          if (exp.grammarRule.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: const Color(0xFF7C3AED)
+                                    .withValues(alpha: 0.15),
+                                border: Border.all(
+                                    color: const Color(0xFF7C3AED)
+                                        .withValues(alpha: 0.4)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text('📚 ',
+                                          style: TextStyle(fontSize: 12)),
+                                      Expanded(
+                                        child: Text(
+                                          exp.grammarRule,
+                                          style: const TextStyle(
+                                            color: Color(0xFFB78BFA),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (exp.ruleFormula.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      exp.ruleFormula,
+                                      style: const TextStyle(
+                                        color: Color(0xFFDDD6FE),
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           // To'liq o'qituvchi tushuntirishi
                           _ExplanationRow(
                             icon: '❌',
@@ -609,6 +660,38 @@ class _PremiumCoachScreenState extends ConsumerState<PremiumCoachScreen> {
                             text: exp.whyCorrect,
                             color: AppColors.success,
                           ),
+                          // ✅ YANGI: Misollar (examples)
+                          if (exp.examples.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: exp.examples.map((ex) {
+                                final isWrong = ex.contains('❌');
+                                final color = isWrong
+                                    ? AppColors.error
+                                    : AppColors.success;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    color: color.withValues(alpha: 0.08),
+                                    border: Border.all(
+                                        color: color.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    ex,
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                         ],
                       ],
                     ),

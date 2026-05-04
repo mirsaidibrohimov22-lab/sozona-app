@@ -790,14 +790,11 @@ export const redeemPromoCode = functions
             throw new functions.https.HttpsError('invalid-argument', "Promo kod noto'g'ri");
         }
 
-        const promoRef = db.collection('promoCodes').doc(code);
-        const usedByRef = promoRef.collection('usedBy').doc(uid);
+        const promoRef = db.collection('promos').doc(code);
         const userRef = db.collection('users').doc(uid);
 
-        // ✅ FIX: batch → transaction
         const premiumUntil = await db.runTransaction(async (t) => {
             const promoSnap = await t.get(promoRef);
-            const usedBySnap = await t.get(usedByRef);
 
             if (!promoSnap.exists) {
                 throw new functions.https.HttpsError('not-found', 'Promo kod topilmadi');
@@ -805,18 +802,20 @@ export const redeemPromoCode = functions
 
             const promo = promoSnap.data()!;
 
-            const now = admin.firestore.Timestamp.now();
-            if (promo.expiresAt && promo.expiresAt.toMillis() < now.toMillis()) {
-                throw new functions.https.HttpsError('failed-precondition', 'Promo kod muddati tugagan');
+            // is_active tekshirish
+            if (promo.is_active === false) {
+                throw new functions.https.HttpsError('failed-precondition', 'Promo kod faol emas');
             }
 
-            const maxUses: number = promo.maxUses ?? 1;
-            const usedCount: number = promo.usedCount ?? 0;
-            if (usedCount >= maxUses) {
+            const maxUsers: number = promo.max_users ?? 1;
+            const usedCount: number = promo.used_count ?? 0;
+            if (usedCount >= maxUsers) {
                 throw new functions.https.HttpsError('resource-exhausted', "Promo kod o'z limitiga yetdi");
             }
 
-            if (usedBySnap.exists) {
+            // Bir foydalanuvchi ikki marta ishlatmasligi uchun (array orqali barcha userlar tekshiriladi)
+            const usedBy: string[] = promo.used_by ?? [];
+            if (usedBy.includes(uid)) {
                 throw new functions.https.HttpsError('already-exists', 'Siz bu promo kodni allaqachon ishlatgansiz');
             }
 
@@ -825,7 +824,7 @@ export const redeemPromoCode = functions
             const existingExpiry = userData.premiumExpiresAt?.toDate?.() as Date | undefined;
             const baseDate = existingExpiry && existingExpiry > new Date() ? existingExpiry : new Date();
             const until = new Date(baseDate);
-            until.setMonth(until.getMonth() + (promo.durationMonths ?? 1));
+            until.setMonth(until.getMonth() + 1); // har doim 1 oylik premium
 
             t.update(userRef, {
                 isPremium: true,
@@ -834,13 +833,12 @@ export const redeemPromoCode = functions
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
+            const newUsedCount = usedCount + 1;
             t.update(promoRef, {
-                usedCount: admin.firestore.FieldValue.increment(1),
-            });
-
-            t.set(usedByRef, {
-                uid,
-                redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
+                used_count: newUsedCount,
+                used_by: admin.firestore.FieldValue.arrayUnion(uid),
+                last_used_at: new Date().toISOString(),
+                is_active: newUsedCount < maxUsers,
             });
 
             return until;

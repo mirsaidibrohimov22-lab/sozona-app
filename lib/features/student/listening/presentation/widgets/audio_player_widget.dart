@@ -224,11 +224,52 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       await _audioPlayer!.play();
       widget.onPlayPause();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _openAiLoading = false;
-          _openAiError = 'Ovoz yuklanmadi. Qayta urining.';
-        });
+      if (!mounted) return;
+
+      // ✅ FIX: Xato turini aniqlab, mos xabar ko'rsatish
+      String errorMsg;
+      bool fallbackToDeviceTts = false;
+
+      if (e is FirebaseFunctionsException) {
+        switch (e.code) {
+          case 'permission-denied':
+            // Premium yo'q — device TTS ga o'tkazamiz
+            errorMsg = 'OpenAI ovoz faqat premium uchun';
+            fallbackToDeviceTts = true;
+            break;
+          case 'unauthenticated':
+            errorMsg = 'Tizimga kirish kerak';
+            fallbackToDeviceTts = true;
+            break;
+          case 'deadline-exceeded':
+          case 'unavailable':
+            errorMsg = 'Server band. Device ovozi ishlatilmoqda.';
+            fallbackToDeviceTts = true;
+            break;
+          default:
+            errorMsg = 'OpenAI xatosi: ${e.message ?? e.code}';
+            fallbackToDeviceTts = true;
+        }
+      } else {
+        errorMsg = 'Ovoz yuklanmadi. Device ovozi ishlatilmoqda.';
+        fallbackToDeviceTts = true;
+      }
+
+      setState(() {
+        _openAiLoading = false;
+        _openAiError = errorMsg;
+      });
+
+      // ✅ FIX: Xato bo'lsa device TTS ga avtomatik o'tkazish
+      if (fallbackToDeviceTts) {
+        // Qisqa kutib, keyin device TTS bilan o'ynash
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          setState(() {
+            _openAiError = null; // xato xabarini tozalaymiz
+          });
+          await _ttsPlayPause(); // device TTS bilan o'ynash
+        }
       }
     }
   }

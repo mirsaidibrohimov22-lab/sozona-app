@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:my_first_app/core/services/activity_sync_service.dart';
 import 'package:my_first_app/core/router/app_router.dart';
 import 'package:my_first_app/core/theme/app_theme.dart';
 import 'package:my_first_app/l10n/l10n.dart';
@@ -67,6 +68,8 @@ class SozonaApp extends ConsumerWidget {
     final GoRouter router;
     try {
       router = ref.watch(appRouterProvider);
+      // ✅ YANGI: Connectivity listener — internet qaytganda offline queue sync bo'ladi
+      ref.watch(activitySyncProvider);
     } catch (e) {
       debugPrint('❌ Router yaratishda xato: $e');
       return MaterialApp(

@@ -1,5 +1,6 @@
 // lib/features/student/quiz/data/models/quiz_attempt_model.dart
 // So'zona — Quiz urinish modeli (null-safe)
+// ✅ FIX: questionText qo'shildi — AI murabbiy uchun savol matni
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:my_first_app/features/student/quiz/domain/entities/quiz_attempt.dart';
@@ -9,6 +10,7 @@ import 'package:my_first_app/features/student/quiz/domain/entities/quiz_attempt.
 class QuizAnswerModel extends QuizAnswer {
   const QuizAnswerModel({
     required super.questionId,
+    super.questionText = '', // ✅ YANGI
     required super.userAnswer,
     required super.correctAnswer,
     required super.isCorrect,
@@ -19,6 +21,7 @@ class QuizAnswerModel extends QuizAnswer {
   factory QuizAnswerModel.fromMap(Map<String, dynamic> map) {
     return QuizAnswerModel(
       questionId: (map['questionId'] as String?) ?? '',
+      questionText: (map['questionText'] as String?) ?? '', // ✅ YANGI
       userAnswer: (map['userAnswer'] as String?) ?? '',
       correctAnswer: (map['correctAnswer'] as String?) ?? '',
       isCorrect: (map['isCorrect'] as bool?) ?? false,
@@ -29,6 +32,7 @@ class QuizAnswerModel extends QuizAnswer {
 
   Map<String, dynamic> toMap() => {
         'questionId': questionId,
+        'questionText': questionText, // ✅ YANGI
         'userAnswer': userAnswer,
         'correctAnswer': correctAnswer,
         'isCorrect': isCorrect,
@@ -39,6 +43,7 @@ class QuizAnswerModel extends QuizAnswer {
   factory QuizAnswerModel.fromEntity(QuizAnswer entity) {
     return QuizAnswerModel(
       questionId: entity.questionId,
+      questionText: entity.questionText, // ✅ YANGI
       userAnswer: entity.userAnswer,
       correctAnswer: entity.correctAnswer,
       isCorrect: entity.isCorrect,

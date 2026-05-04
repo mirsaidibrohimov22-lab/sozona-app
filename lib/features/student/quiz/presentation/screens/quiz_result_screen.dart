@@ -163,7 +163,8 @@ class QuizResultScreen extends ConsumerWidget {
                               attempt.answers.where((a) => !a.isCorrect).length,
                           'wrongAnswers': attempt.wrongAnswers
                               .map((a) => {
-                                    'question': a.questionId,
+                                    'question': a
+                                        .questionText, // ✅ FIX: ID emas, savol matni
                                     'userAnswer': a.userAnswer,
                                     'correctAnswer': a.correctAnswer,
                                   })

@@ -485,13 +485,33 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
       final correctCount = ((result['correctCount'] ?? 0) as num).toInt();
       final totalCount = ((result['totalCount'] ?? 0) as num).toInt();
       final hasPremium = ref.read(hasPremiumProvider);
-      // ✅ YANGI: Hozirgi sessiya ma'lumotlari
       final playState = ref.read(listeningPlayProvider);
       final exerciseTopic = playState?.exercise.topic ?? '';
       final exerciseTitle = playState?.exercise.title ?? '';
       final missedWords =
           (result['missedWords'] as List?)?.map((e) => e.toString()).toList() ??
               <String>[];
+
+      // ✅ FIX: Har bir savolni tekshirib wrongAnswers yasaymiz
+      // playState.userAnswers = Map<questionId, userAnswer>
+      // exercise.questions = barcha savollar (question, correctAnswer, options)
+      final wrongAnswers = <Map<String, dynamic>>[];
+      if (playState != null) {
+        for (final q in playState.exercise.questions) {
+          final userAns = playState.userAnswers[q.id] ?? '';
+          final isCorrect = userAns.trim().toLowerCase() ==
+              q.correctAnswer.trim().toLowerCase();
+          if (!isCorrect) {
+            wrongAnswers.add({
+              'question': q.question,
+              'userAnswer': userAns.isNotEmpty ? userAns : '(javob berilmadi)',
+              'correctAnswer': q.correctAnswer,
+              if (q.options != null && q.options!.isNotEmpty)
+                'options': q.options,
+            });
+          }
+        }
+      }
 
       showListeningSuccess(
         context,
@@ -507,7 +527,6 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
                       lastScore: totalCount > 0
                           ? (correctCount / totalCount * 100)
                           : 0,
-                      // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
                       sessionData: {
                         'topic': exerciseTitle.isNotEmpty
                             ? exerciseTitle
@@ -515,6 +534,9 @@ class _ListeningPlayScreenState extends ConsumerState<ListeningPlayScreen> {
                         'totalQuestions': totalCount,
                         'correctCount': correctCount,
                         'wrongCount': totalCount - correctCount,
+                        // ✅ FIX: Endi aniq savol+javob+to'g'ri javob yuboriladi
+                        if (wrongAnswers.isNotEmpty)
+                          'wrongAnswers': wrongAnswers,
                         if (missedWords.isNotEmpty) 'missedWords': missedWords,
                       },
                     ),

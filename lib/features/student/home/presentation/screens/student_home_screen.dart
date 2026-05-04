@@ -60,10 +60,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     super.dispose();
   }
 
+  DateTime? _lastResumeRefresh;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      ref.read(studentHomeProvider.notifier).refresh();
+      final now = DateTime.now();
+      // ✅ FIX: Resume da har safar refresh qilmaymiz — faqat 5 daqiqada bir marta
+      // Oldin: har background->foreground da to'liq reload (loading ko'rsatilardi)
+      // Yangi: 5 daqiqa o'tmagan bo'lsa — faqat streak yangilanadi, ma'lumot qayta yuklanmaydi
+      final shouldRefresh = _lastResumeRefresh == null ||
+          now.difference(_lastResumeRefresh!) > const Duration(minutes: 5);
+
+      final user = ref.read(authNotifierProvider).user;
+      if (user != null) {
+        ref.read(streakServiceProvider).updateStreak(user.id);
+      }
+
+      if (shouldRefresh) {
+        _lastResumeRefresh = now;
+        ref.read(studentHomeProvider.notifier).refresh();
+      }
     }
   }
 

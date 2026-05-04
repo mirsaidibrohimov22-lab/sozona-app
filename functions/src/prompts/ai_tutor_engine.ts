@@ -344,9 +344,17 @@ export async function generateWeeklyAnalytics(userId: string): Promise<void> {
     const db = admin.firestore();
 
     const now = new Date();
-    const weekMs = 7 * 24 * 60 * 60 * 1000;
-    const weekStart = new Date(now.getTime() - weekMs);
     const weekId = getWeekId(now);   // '2026-W14'
+
+    // ✅ FIX: Aynan 7 kun oldin emas — o'tgan dushanbaning 00:00 dan boshlanadi
+    // Oldin: now - 7*24h → dushanba 07:00 dan → 06:59 gacha bo'lgan darslar tushib qolardi
+    // Yangi: o'tgan dushanbaning 00:00 → hech qanday dars tushib qolmaydi
+    const weekStart = new Date(now);
+    // Joriy haftaning dushanbasi (0=yakshanba, 1=dushanba...)
+    const dayOfWeek = weekStart.getDay(); // 1 = dushanba
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    weekStart.setDate(weekStart.getDate() - daysSinceMonday - 7); // o'tgan hafta dushanbasi
+    weekStart.setHours(0, 0, 0, 0);
 
     // Bu hafta activities
     const activitiesSnap = await db.collection('activities')

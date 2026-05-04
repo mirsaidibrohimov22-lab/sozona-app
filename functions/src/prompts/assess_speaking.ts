@@ -49,6 +49,12 @@ export interface SpeakingAssessment {
     vocabularyScore: number;
     overallScore: number;
 
+    // ✅ Flutter speaking_screen uchun alias maydonlar
+    pronunciation: number;
+    grammar: number;
+    fluency: number;
+    topicRelevance: number;
+
     // Batafsil tahlil
     pronunciationFeedback: string;
     grammarFeedback: string;
@@ -57,6 +63,8 @@ export interface SpeakingAssessment {
 
     // Grammatik xatolar
     grammarErrors: GrammarError[];
+    // ✅ YANGI: Aniq jumlalar bilan — Flutter speaking_screen uchun
+    grammarErrorDetails: { original: string; corrected: string; explanation: string; rule: string }[];
 
     // So'z boyligi tahlili
     vocabularyUsed: string[];
@@ -275,11 +283,25 @@ MUHIM:
             fluencyScore,
             vocabularyScore,
             overallScore,
+            // ✅ Flutter speaking_screen kutadigan nomlar (alias)
+            pronunciation: pronunciationScore,
+            grammar: grammarScore,
+            fluency: fluencyScore,
+            topicRelevance: vocabularyScore, // eng yaqin mavzu bali
             pronunciationFeedback: (parsed.pronunciationFeedback as string) ?? '',
             grammarFeedback: (parsed.grammarFeedback as string) ?? '',
             fluencyFeedback: (parsed.fluencyFeedback as string) ?? '',
             vocabularyFeedback: (parsed.vocabularyFeedback as string) ?? '',
+            // grammarErrors — qoida nomlari (analytics uchun)
             grammarErrors,
+            // ✅ YANGI: grammarErrorDetails — aniq jumlalar bilan
+            // Flutter speaking_screen bu orqali wrongAnswers yasaydi
+            grammarErrorDetails: grammarErrors.map(e => ({
+                original: e.original,
+                corrected: e.corrected,
+                explanation: e.explanation,
+                rule: e.rule,
+            })),
             vocabularyUsed: (parsed.vocabularyUsed as string[]) ?? [],
             suggestedVocabulary: (parsed.suggestedVocabulary as string[]) ?? [],
             overallFeedback: (parsed.overallFeedback as string) ?? '',

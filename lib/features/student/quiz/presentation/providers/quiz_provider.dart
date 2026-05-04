@@ -238,6 +238,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
           userAns.toLowerCase().trim() == q.correctAnswer.toLowerCase().trim();
       return QuizAnswer(
         questionId: q.id,
+        questionText: q.question, // ✅ FIX: savol matni AI murabbiy uchun
         userAnswer: userAns,
         correctAnswer: q.correctAnswer,
         isCorrect: isCorrect,
@@ -287,6 +288,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
           userAns.toLowerCase().trim() == q.correctAnswer.toLowerCase().trim();
       return QuizAnswer(
         questionId: q.id,
+        questionText: q.question, // ✅ FIX: savol matni AI murabbiy uchun
         userAnswer: userAns,
         correctAnswer: q.correctAnswer,
         isCorrect: isCorrect,

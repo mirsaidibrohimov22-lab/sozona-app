@@ -125,9 +125,17 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
     if (user == null) return;
     if (!mounted) return;
 
-    state = state.copyWith(isLoading: true, user: user, clearError: true);
+    // ✅ FIX: Agar ma'lumot allaqachon bor bo'lsa — loading ko'rsatmaymiz
+    // Faqat birinchi marta yuklanayotganda isLoading = true
+    final isFirstLoad = state.user == null;
+    if (isFirstLoad) {
+      state = state.copyWith(isLoading: true, user: user, clearError: true);
+    } else {
+      state = state.copyWith(user: user, clearError: true);
+    }
 
     try {
+      // ✅ FIX: streak, dailyPlan, xp parallel — motivation FONDA (kutmaymiz)
       final results = await Future.wait([
         _loadStreakData(user.id),
         _loadDailyPlanData(user),
@@ -152,6 +160,7 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
         clearError: true,
       );
 
+      // ✅ FIX: motivation FONDA — UI ni kuttirib qo'ymaydi
       _triggerMotivation(user, streakData, weakCount);
     } catch (e) {
       debugPrint('⚠️ Home data xatosi: $e');
@@ -287,29 +296,18 @@ class StudentHomeNotifier extends StateNotifier<StudentHomeState> {
 
   Future<int> _loadXp(String userId) async {
     try {
-      // ✅ FIX: Source.server — cache emas, har doim yangi XP olish
-      // Quiz/Listening/Speaking XP yozgandan keyin cache eski qiymat qaytarardi
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get(const GetOptions(source: Source.server));
+      // ✅ FIX: Avval cache dan — tez, keyin serverdan yangilanadi
+      // Source.server o'rniga default (cache+server) — UI bloklanmaydi
+      final userDoc = await _firestore.collection('users').doc(userId).get();
       final userXp = _toInt(userDoc.data()?['totalXp']);
       if (userXp > 0) return userXp;
 
-      final progressDoc = await _firestore
-          .collection('progress')
-          .doc(userId)
-          .get(const GetOptions(source: Source.server));
+      final progressDoc =
+          await _firestore.collection('progress').doc(userId).get();
       return _toInt(progressDoc.data()?['totalXp']);
     } catch (e) {
-      // Server dan o'qib bo'lmasa — cache dan urinib ko'ramiz
-      debugPrint('⚠️ XP server dan yuklanmadi, cache urinamiz: $e');
-      try {
-        final userDoc = await _firestore.collection('users').doc(userId).get();
-        return _toInt(userDoc.data()?['totalXp']);
-      } catch (_) {
-        return 0;
-      }
+      debugPrint('⚠️ XP yuklanmadi: $e');
+      return 0;
     }
   }
 
@@ -435,7 +433,6 @@ final studentHomeProvider =
 final quickActionsProvider = Provider<List<QuickAction>>((ref) {
   final user = ref.watch(authNotifierProvider).user;
   final isGerman = user?.isLearningGerman ?? false;
-  final hasPremium = user?.hasActivePremium ?? false;
 
   return [
     const QuickAction(

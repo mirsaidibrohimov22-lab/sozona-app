@@ -127,24 +127,22 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _checkAuth() async {
-    // ✅ FIX: animatsiya tugashini kutamiz (~5s)
-    await Future.delayed(const Duration(milliseconds: 5000));
-    if (!mounted || _hasNavigated) return;
-    try {
-      await ref.read(authNotifierProvider.notifier).checkAuthStatus();
-    } catch (_) {
-      if (mounted && !_hasNavigated) {
-        _hasNavigated = true;
-        context.go(RoutePaths.onboarding);
-      }
-      return;
-    }
+    // ✅ FIX: Minimal animatsiya ko'rsatish uchun 1.5s kutamiz (oldin 5s edi)
+    // Auth check parallel ketadi — qaysi biri kech bo'lsa o'sha kutiladi
+    final authFuture =
+        ref.read(authNotifierProvider.notifier).checkAuthStatus();
+    await Future.wait([
+      authFuture.catchError((_) {}),
+      Future.delayed(const Duration(milliseconds: 1500)),
+    ]);
+
     if (!mounted || _hasNavigated) return;
     _hasNavigated = true;
-    final state = ref.read(authNotifierProvider);
-    switch (state.status) {
+
+    final authState = ref.read(authNotifierProvider);
+    switch (authState.status) {
       case AuthStatus.authenticated:
-        context.go(state.user?.isTeacher == true
+        context.go(authState.user?.isTeacher == true
             ? RoutePaths.teacherDashboard
             : RoutePaths.studentHome);
         break;

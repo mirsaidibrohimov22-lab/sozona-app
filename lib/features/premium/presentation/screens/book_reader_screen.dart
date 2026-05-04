@@ -93,15 +93,16 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen>
       );
     }
 
-    if (state.book == null) {
+    // FIX: state.book local variable ga olinadi
+    // Dart property (state.book) null check dan keyin narrowing qilmaydi
+    final book = state.book;
+    if (book == null) {
       return const Scaffold(
         backgroundColor: Color(0xFF0A0A1A),
         body:
             Center(child: CircularProgressIndicator(color: Color(0xFFFFD700))),
       );
     }
-
-    final book = state.book!;
     final chapter = book.chapters[_chapterIndex];
 
     return Scaffold(

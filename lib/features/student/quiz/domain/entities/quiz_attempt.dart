@@ -1,10 +1,12 @@
-// QO'YISH: lib/features/student/quiz/domain/entities/quiz_attempt.dart
+// lib/features/student/quiz/domain/entities/quiz_attempt.dart
 // So'zona — Quiz urinish entity
+// ✅ FIX: questionText qo'shildi — AI murabbiy savol matnini ko'ra olsin
 
 import 'package:equatable/equatable.dart';
 
 class QuizAnswer extends Equatable {
   final String questionId;
+  final String questionText; // ✅ YANGI: savol matni ("She ___ to school")
   final String userAnswer;
   final String correctAnswer;
   final bool isCorrect;
@@ -13,6 +15,7 @@ class QuizAnswer extends Equatable {
 
   const QuizAnswer({
     required this.questionId,
+    this.questionText = '', // ✅ default — eski kod bilan mos
     required this.userAnswer,
     required this.correctAnswer,
     required this.isCorrect,

@@ -54,16 +54,22 @@ class WrongAnswerExplanation {
   final String question;
   final String userAnswer;
   final String correctAnswer;
+  final String grammarRule; // ✅ YANGI: "3rd Person Singular"
+  final String ruleFormula; // ✅ YANGI: "he/she/it + verb+s/es"
   final String whyWrong;
   final String whyCorrect;
+  final List<String> examples; // ✅ YANGI: ["She goes ✅", "She go ❌"]
   final String simpleExplanation;
 
   const WrongAnswerExplanation({
     required this.question,
     required this.userAnswer,
     required this.correctAnswer,
+    this.grammarRule = '',
+    this.ruleFormula = '',
     required this.whyWrong,
     required this.whyCorrect,
+    this.examples = const [],
     required this.simpleExplanation,
   });
 
@@ -72,8 +78,11 @@ class WrongAnswerExplanation {
         question: m['question'] as String? ?? '',
         userAnswer: m['userAnswer'] as String? ?? '',
         correctAnswer: m['correctAnswer'] as String? ?? '',
+        grammarRule: m['grammarRule'] as String? ?? '', // ✅ YANGI
+        ruleFormula: m['ruleFormula'] as String? ?? '', // ✅ YANGI
         whyWrong: m['whyWrong'] as String? ?? '',
         whyCorrect: m['whyCorrect'] as String? ?? '',
+        examples: List<String>.from(m['examples'] as List? ?? []), // ✅ YANGI
         simpleExplanation: m['simpleExplanation'] as String? ?? '',
       );
 }

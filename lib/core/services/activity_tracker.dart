@@ -7,6 +7,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:my_first_app/core/constants/api_endpoints.dart';
+import 'package:my_first_app/core/services/connectivity_service.dart';
+import 'package:my_first_app/core/services/offline_activity_queue.dart';
 
 /// Mashq natijasini backend ga yuborish uchun yordamchi klass.
 ///
@@ -135,35 +137,52 @@ class ActivityTracker {
     List<String> weakItems = const [],
     String? contentId,
   }) async {
+    final payload = <String, dynamic>{
+      'skillType': skillType,
+      'topic': topic,
+      'difficulty': 'medium',
+      'correctAnswers': correctAnswers,
+      'wrongAnswers': wrongAnswers,
+      'responseTime': responseTime,
+      'vocabularyUsed': vocabularyUsed,
+      'grammarErrors': grammarErrors,
+      'language': language,
+      'level': level,
+      'scorePercent': scorePercent,
+      'weakItems': weakItems,
+      'strongItems': <String>[],
+      if (contentId != null) 'contentId': contentId,
+    };
+
     try {
+      // ✅ FIX: Internet borligini mavjud ConnectivityService orqali tekshiramiz
+      final hasInternet = await ConnectivityService().hasConnection;
+
+      if (!hasInternet) {
+        // 📴 Internet yo'q — xotiraga saqlaymiz, internet qaytganda yuboriladi
+        await OfflineActivityQueue.add(payload);
+        debugPrint(
+          '📴 Offline: $skillType | $topic saqlandi (internet qaytganda yuboriladi)',
+        );
+        return;
+      }
+
+      // 🌐 Internet bor — to'g'ridan-to'g'ri serverga yuboramiz
       final callable = _fn.httpsCallable(
         ApiEndpoints.recordActivity,
         options: HttpsCallableOptions(timeout: ApiEndpoints.defaultTimeout),
       );
-
-      await callable.call({
-        'skillType': skillType,
-        'topic': topic,
-        'difficulty': 'medium',
-        'correctAnswers': correctAnswers,
-        'wrongAnswers': wrongAnswers,
-        'responseTime': responseTime,
-        'vocabularyUsed': vocabularyUsed,
-        'grammarErrors': grammarErrors,
-        'language': language,
-        'level': level,
-        'scorePercent': scorePercent,
-        'weakItems': weakItems,
-        'strongItems': <String>[],
-        if (contentId != null) 'contentId': contentId,
-      });
+      await callable.call(payload);
 
       debugPrint(
         '📊 Activity saqlandi: $skillType | $topic | ${scorePercent.toStringAsFixed(0)}%',
       );
     } catch (e) {
-      // Activity saqlash xatosi sessiyani HECH QACHON buzmaydi
-      debugPrint('⚠️ Activity saqlash xatosi ($skillType): $e');
+      // Xato bo'lsa — offline queue ga saqlaymiz (yo'qotmaymiz)
+      debugPrint('⚠️ Activity serverga yuborilmadi, offline saqlandi: $e');
+      try {
+        await OfflineActivityQueue.add(payload);
+      } catch (_) {}
     }
   }
 }

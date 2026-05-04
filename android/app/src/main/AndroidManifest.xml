@@ -34,6 +34,14 @@
              Sabab: targetSdk=34 da Play Market xavfsizlik tekshiruvidan o'tolmaydi.
              Firebase, Firestore, Cloud Functions — hammasi HTTPS ishlatadi.
              Agar HTTP kerak bo'lsa, network_security_config.xml orqali aniq domenlar uchun ruxsat bering. -->
+
+        <!-- ✅ FIX v5: Impeller o'chirildi — Adreno GPU da AHardwareBuffer xatolari
+             Muammo: Failed to allocate (4x4) format 56/59 — Vulkan texture formatlari
+             Adreno qurilmalarda (Redmi/Xiaomi) ETC2/ASTC formatlar qo'llab-quvvatlanmaydi.
+             Impeller=false → eski Skia renderer ishlatiladi, barqaror ishlaydi. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         
         <activity
             android:name=".MainActivity"

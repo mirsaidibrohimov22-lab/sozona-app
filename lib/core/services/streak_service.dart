@@ -2,6 +2,7 @@
 // So'zona — Streak yangilash xizmati
 // progress/{uid} collectioniga yozadi — users/{uid} ga tegmaydi
 // student_home_provider allaqachon progress/{uid} dan o'qiydi
+// ✅ FIX: last7Days har kuni yangilanadi (streak_calendar uchun)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -36,6 +37,7 @@ class StreakService {
           'currentStreak': 1,
           'longestStreak': 1,
           'lastActiveDate': Timestamp.fromDate(today),
+          'last7Days': [...List.filled(6, false), true],
         }, SetOptions(merge: true));
         // Profil badge uchun users/{uid}/currentStreak yangilanadi
         await _firestore
@@ -57,6 +59,7 @@ class StreakService {
           'currentStreak': 1,
           'longestStreak': longestStreak < 1 ? 1 : longestStreak,
           'lastActiveDate': Timestamp.fromDate(today),
+          'last7Days': [...List.filled(6, false), true],
         }, SetOptions(merge: true));
         // Profil badge uchun users/{uid}/currentStreak yangilanadi
         await _firestore
@@ -73,7 +76,20 @@ class StreakService {
         final d = lastActiveRaw.toDate();
         lastActive = DateTime(d.year, d.month, d.day);
       } else {
-        lastActive = today;
+        // Noto'g'ri format — bugundan boshlash xavfsizroq
+        debugPrint(
+            '⚠️ Streak: lastActiveDate noto\'g\'ri format (${lastActiveRaw.runtimeType}) — reset');
+        await docRef.set({
+          'currentStreak': 1,
+          'longestStreak': longestStreak < 1 ? 1 : longestStreak,
+          'lastActiveDate': Timestamp.fromDate(today),
+          'last7Days': [...List.filled(6, false), true],
+        }, SetOptions(merge: true));
+        await _firestore
+            .collection('users')
+            .doc(uid)
+            .set({'currentStreak': 1}, SetOptions(merge: true));
+        return;
       }
 
       // Bugun allaqachon kirgan — hech narsa o'zgartirma
@@ -106,10 +122,15 @@ class StreakService {
       // longestStreak ni yangilab borish
       final newLongest = newStreak > longestStreak ? newStreak : longestStreak;
 
+      // last7Days yangilash — o'tkazilgan kunlar false, bugun true
+      final existing = data['last7Days'] as List<dynamic>?;
+      final newLast7 = _buildLast7Days(existing, daysMissed);
+
       await docRef.set({
         'currentStreak': newStreak,
         'longestStreak': newLongest,
         'lastActiveDate': Timestamp.fromDate(today),
+        'last7Days': newLast7,
       }, SetOptions(merge: true));
 
       // Profil badge uchun users/{uid}/currentStreak ham yangilanadi
@@ -126,6 +147,31 @@ class StreakService {
       // Xato bo'lsa app ishini to'xtatmaymiz — faqat log
       debugPrint('⚠️ StreakService xatosi: $e');
     }
+  }
+
+  /// last7Days — o'tkazilgan kunlarni false, bugunni true qilib yangilaydi
+  /// daysMissed=1 → kecha kirgan (ketma-ket)
+  /// daysMissed=3 → 2 kun o'tkazilgan, bugun kirdi
+  List<bool> _buildLast7Days(List<dynamic>? existing, int daysMissed) {
+    // Mavjud list yo'q — yangi yaratamiz
+    List<bool> result;
+    if (existing == null || existing.isEmpty) {
+      result = List.filled(7, false);
+    } else {
+      result = existing.map((e) => e == true).toList();
+      while (result.length < 7) result.insert(0, false);
+      if (result.length > 7) result = result.sublist(result.length - 7);
+    }
+
+    // O'tkazilgan kunlar uchun false shift, bugun uchun true
+    // daysMissed=1: [_, _, _, _, _, _, X] → shift 1 → bugun=true
+    // daysMissed=3: [_, _, _, _, _, X, X] → shift 3 → 2 false + bugun=true
+    final shifts = daysMissed.clamp(1, 7);
+    for (int i = 0; i < shifts - 1; i++) {
+      result = [...result.sublist(1), false]; // o'tkazilgan kun
+    }
+    result = [...result.sublist(1), true]; // bugun
+    return result;
   }
 
   /// Yordamchi — dynamic → int

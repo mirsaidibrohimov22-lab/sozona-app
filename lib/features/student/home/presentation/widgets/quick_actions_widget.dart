@@ -74,13 +74,15 @@ class _QuickActionItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Color(gradientColors[0].value).withValues(alpha: 0.18),
+              // ✅ FIX: Color(x.value) o'rniga to'g'ridan-to'g'ri color ishlatildi
+              color: gradientColors[0].withValues(alpha: 0.18),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(
-            color: Color(gradientColors[0].value).withValues(alpha: 0.2),
+            // ✅ FIX: Color(x.value) o'rniga to'g'ridan-to'g'ri color ishlatildi
+            color: gradientColors[0].withValues(alpha: 0.2),
             width: 1.5,
           ),
         ),
@@ -111,7 +113,8 @@ class _QuickActionItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: Color(gradientColors[1].value),
+                // ✅ FIX: Color(x.value) o'rniga to'g'ridan-to'g'ri color ishlatildi
+                color: gradientColors[1],
               ),
               textAlign: TextAlign.center,
             ),

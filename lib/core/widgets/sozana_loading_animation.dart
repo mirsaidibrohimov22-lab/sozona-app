@@ -29,7 +29,7 @@ class SozonaLoadingAnimation extends StatefulWidget {
   }) {
     final entry = OverlayEntry(
       builder: (_) => Material(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withValues(alpha: 0.45),
         child: Center(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 28),
@@ -38,7 +38,7 @@ class SozonaLoadingAnimation extends StatefulWidget {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6C63FF).withOpacity(0.3),
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
                   blurRadius: 30,
                   spreadRadius: 2,
                 ),
@@ -129,7 +129,7 @@ class _SozonaLoadingAnimationState extends State<SozonaLoadingAnimation>
             child: Text(
               widget.message!,
               style: TextStyle(
-                color: _primary.withOpacity(0.9),
+                color: _primary.withValues(alpha: 0.9),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.3,
@@ -153,7 +153,7 @@ class _SozonaLoadingAnimationState extends State<SozonaLoadingAnimation>
         final height = (math.sin(phase * 2 * math.pi) * 0.5 + 0.5);
         final barHeight = widget.size * 0.2 + height * widget.size * 0.7;
         final colorT = (i / 4).clamp(0.0, 1.0);
-        final color = Color.lerp(_primary, _secondary, colorT)!;
+        final color = Color.lerp(_primary, _secondary, colorT) ?? _primary;
         return AnimatedContainer(
           duration: Duration.zero,
           width: widget.size * 0.1,
@@ -162,12 +162,12 @@ class _SozonaLoadingAnimationState extends State<SozonaLoadingAnimation>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [color, color.withOpacity(0.4)],
+              colors: [color, color.withValues(alpha: 0.4)],
             ),
             borderRadius: BorderRadius.circular(widget.size * 0.05),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.6),
+                color: color.withValues(alpha: 0.6),
                 blurRadius: 6,
                 spreadRadius: 1,
               ),
@@ -212,7 +212,7 @@ class _SozonaLoadingAnimationState extends State<SozonaLoadingAnimation>
         final offset = bounce * widget.size * 0.25;
         final scale = 0.7 + bounce * 0.3;
         final colorT = (i / 2).clamp(0.0, 1.0);
-        final color = Color.lerp(_primary, _secondary, colorT)!;
+        final color = Color.lerp(_primary, _secondary, colorT) ?? _primary;
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: widget.size * 0.06),
           child: Transform.translate(
@@ -227,7 +227,7 @@ class _SozonaLoadingAnimationState extends State<SozonaLoadingAnimation>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.5),
+                      color: color.withValues(alpha: 0.5),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -259,51 +259,45 @@ class _OrbitPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width * 0.38;
 
-    // Markaziy doira
     final corePaint = Paint()
-      ..color = primary.withOpacity(0.2)
+      ..color = primary.withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius * 0.35, corePaint);
 
     final coreBorderPaint = Paint()
-      ..color = primary.withOpacity(0.8)
+      ..color = primary.withValues(alpha: 0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawCircle(center, radius * 0.35, coreBorderPaint);
 
-    // Orbit yo'li
     final orbitPaint = Paint()
-      ..color = primary.withOpacity(0.15)
+      ..color = primary.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius, orbitPaint);
 
-    // Aylanuvchi top
     final angle = progress * 2 * math.pi - math.pi / 2;
     final dotX = center.dx + radius * math.cos(angle);
     final dotY = center.dy + radius * math.sin(angle);
 
-    // Iz (trail)
     for (int i = 1; i <= 12; i++) {
       final trailAngle = angle - (i * 0.08);
       final tx = center.dx + radius * math.cos(trailAngle);
       final ty = center.dy + radius * math.sin(trailAngle);
       final opacity = (1 - i / 12) * 0.5;
       final trailPaint = Paint()
-        ..color = secondary.withOpacity(opacity)
+        ..color = secondary.withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(tx, ty), 2.5 * (1 - i / 12), trailPaint);
     }
 
-    // Asosiy top
     final dotPaint = Paint()
       ..color = secondary
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(dotX, dotY), size.width * 0.07, dotPaint);
 
-    // Glow
     final glowPaint = Paint()
-      ..color = secondary.withOpacity(0.4)
+      ..color = secondary.withValues(alpha: 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     canvas.drawCircle(Offset(dotX, dotY), size.width * 0.09, glowPaint);
   }
@@ -333,23 +327,22 @@ class _PulsePainter extends CustomPainter {
       final phase = (progress + i / 3) % 1.0;
       final radius = phase * maxR;
       final opacity = (1.0 - phase) * 0.6;
-      final color = Color.lerp(primary, secondary, phase)!;
+      final color = Color.lerp(primary, secondary, phase) ?? primary;
 
       final paint = Paint()
-        ..color = color.withOpacity(opacity)
+        ..color = color.withValues(alpha: opacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
       canvas.drawCircle(center, radius, paint);
     }
 
-    // Markaziy nuqta
     final dotPaint = Paint()
       ..color = primary
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, maxR * 0.18, dotPaint);
 
     final glowPaint = Paint()
-      ..color = primary.withOpacity(0.4)
+      ..color = primary.withValues(alpha: 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawCircle(center, maxR * 0.22, glowPaint);
   }

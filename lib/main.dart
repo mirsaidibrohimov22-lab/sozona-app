@@ -3,6 +3,8 @@
 // ✅ FIX v2: Qora ekran muammosi hal qilindi.
 // ✅ FIX v3: flutter_foreground_task initCommunicationPort qo'shildi
 // ✅ FIX v4: StorageService singleton — faqat bitta instance, provider bilan mos
+// ✅ FIX v5: Hive + SharedPreferences parallel init (Future.wait) — frame drop kamaytirish
+// ✅ FIX v6: sharedPreferencesProvider import qo'shildi
 
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -20,7 +22,8 @@ import 'package:my_first_app/core/services/crashlytics_service.dart';
 import 'package:my_first_app/core/services/deep_link_service.dart';
 import 'package:my_first_app/core/services/local_storage_service.dart';
 import 'package:my_first_app/core/services/notification_service.dart';
-import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_first_app/core/services/activity_sync_service.dart';
+import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart'; // ✅ FIX: sharedPreferencesProvider
 import 'package:my_first_app/firebase_options.dart';
 
 void main() async {
@@ -29,6 +32,7 @@ void main() async {
   // ✅ flutter_foreground_task — runApp dan OLDIN chaqirilishi shart
   FlutterForegroundTask.initCommunicationPort();
 
+  // ✅ Orientatsiya + status bar — UI xotira talab qilmaydi, tez bajariladi
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -42,7 +46,7 @@ void main() async {
     ),
   );
 
-  // 1. Firebase — zarur, await kerak
+  // ✅ 1. Firebase — zarur, await kerak (boshqa servislar unga bog'liq)
   bool firebaseOk = false;
   try {
     if (!DefaultFirebaseOptions.isSupportedPlatform) {
@@ -60,29 +64,30 @@ void main() async {
     debugPrint('❌ Firebase init xatosi: $e\n$stack');
   }
 
-  // 2. Hive + StorageService
-  // ✅ FIX v4: storageInstance — bitta instance, provider ham shu instanceni ishlatadi.
-  // Avvalgi: StorageService() yangi instance → storageServiceProvider boshqa instance.
-  // Yangi:   ProviderScope override orqali ikkalasi ham bir xil object.
+  // ✅ 2. Hive + SharedPreferences — PARALLEL (ikkalasi bir-biriga bog'liq emas)
+  //    Avvalgi: ketma-ket → ~300ms+
+  //    Yangi:   parallel → eng sekin servis vaqti qadar (~150ms)
   final StorageService storageInstance = StorageService();
-  try {
-    await Hive.initFlutter();
-    await storageInstance.init();
-    debugPrint('✅ Hive initialized');
-  } catch (e) {
-    debugPrint('⚠️ Hive xatosi: $e');
-  }
-
-  // 3. SharedPreferences — lokal, tez, kerak
   SharedPreferences? sharedPreferences;
+
   try {
-    sharedPreferences = await SharedPreferences.getInstance();
-    debugPrint('✅ SharedPreferences initialized');
+    // ✅ FIX: results o'zgaruvchisi olib tashlandi (unused_local_variable warning)
+    await Future.wait([
+      // Hive + StorageService
+      Hive.initFlutter().then((_) => storageInstance.init()).then((_) {
+        debugPrint('✅ Hive initialized');
+      }),
+      // SharedPreferences
+      SharedPreferences.getInstance().then((prefs) {
+        sharedPreferences = prefs;
+        debugPrint('✅ SharedPreferences initialized');
+      }),
+    ]);
   } catch (e) {
-    debugPrint('❌ SharedPreferences xatolik: $e');
+    debugPrint('⚠️ Storage init xatosi: $e');
   }
 
-  // SharedPreferences olmasa ilova ishlay olmaydi — xato ekranini ko'rsatamiz
+  // ✅ SharedPreferences olmasa ilova ishlay olmaydi
   if (sharedPreferences == null) {
     runApp(
       MaterialApp(
@@ -107,10 +112,11 @@ void main() async {
 
   debugPrint('🚀 App starting...');
 
+  // ✅ 3. runApp — imkon qadar tezroq chaqiriladi
   runApp(
     ProviderScope(
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences!),
         // ✅ FIX v4: provider ham xuddi shu init qilingan instanceni ishlatadi
         storageServiceProvider.overrideWithValue(storageInstance),
       ],
@@ -118,7 +124,8 @@ void main() async {
     ),
   );
 
-  // 4. Sekin/network servislar — runApp() dan KEYIN, fonda
+  // ✅ 4. Sekin/network servislar — runApp() dan KEYIN, fonda
+  //    App Check, Crashlytics, Notifications, DeepLink — birinchi kadrni kechiktirmaydi
   if (firebaseOk && !kIsWeb) {
     _initBackgroundServices();
   }
@@ -126,9 +133,26 @@ void main() async {
 
 /// Fonda bajariladigan — birinchi kadrni kechiktirmaydi
 Future<void> _initBackgroundServices() async {
+  // ✅ 300ms kutamiz — birinchi frame render bo'lsin
   await Future.delayed(const Duration(milliseconds: 300));
 
-  // App Check
+  // ✅ Barcha fon servislar ham parallel ishga tushiriladi
+  await Future.wait([
+    _initAppCheck(),
+    _initCrashlytics(),
+    // ✅ YANGI: Offline queue — internet bo'lsa pending faoliyatlarni yuboradi
+    ActivitySyncService.syncOnStartup(),
+  ]);
+
+  // ✅ Notifications + DeepLink — App Check dan keyin (token kerak bo'lishi mumkin)
+  await Future.wait([
+    _initNotifications(),
+    _initDeepLink(),
+  ]);
+}
+
+/// App Check — debug rejimda debug provider, release da Play Integrity
+Future<void> _initAppCheck() async {
   try {
     await FirebaseAppCheck.instance.activate(
       // ignore: deprecated_member_use
@@ -142,8 +166,10 @@ Future<void> _initBackgroundServices() async {
   } catch (e) {
     debugPrint('⚠️ App Check xatosi: $e');
   }
+}
 
-  // Crashlytics
+/// Crashlytics — global xatolarni ushlab qoladi
+Future<void> _initCrashlytics() async {
   try {
     await CrashlyticsService.init();
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
@@ -155,8 +181,10 @@ Future<void> _initBackgroundServices() async {
   } catch (e) {
     debugPrint('⚠️ Crashlytics xatosi: $e');
   }
+}
 
-  // Notifications
+/// Push notifications + FCM token Firestore ga saqlash
+Future<void> _initNotifications() async {
   try {
     await NotificationService.init();
     final token = await NotificationService.getToken();
@@ -170,8 +198,10 @@ Future<void> _initBackgroundServices() async {
   } catch (e) {
     debugPrint('⚠️ Notification xatosi: $e');
   }
+}
 
-  // Deep Link
+/// Deep link — dynamic links va custom scheme
+Future<void> _initDeepLink() async {
   try {
     await DeepLinkService.init();
     debugPrint('✅ DeepLinkService initialized');

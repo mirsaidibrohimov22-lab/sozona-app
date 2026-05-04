@@ -32,6 +32,7 @@ import 'package:my_first_app/core/widgets/sozana_loading_animation.dart';
 import 'package:my_first_app/features/student/speaking/data/models/speaking_model.dart';
 import 'package:my_first_app/features/student/speaking/domain/entities/speaking_exercise.dart';
 import 'package:my_first_app/features/student/speaking/presentation/providers/speaking_provider.dart';
+import 'package:my_first_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_first_app/features/premium/presentation/providers/premium_provider.dart';
 import 'package:my_first_app/features/premium/presentation/screens/premium_coach_screen.dart';
 
@@ -323,6 +324,10 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
     }
     final session = ref.read(speakingSessionProvider);
     if (session == null) return;
+
+    // ✅ FIX: userId ni auth provider dan olamiz — backend talab qiladi
+    final userId = ref.read(authNotifierProvider).user?.id ?? '';
+
     setState(() {
       _isAnalyzing = true;
       _errorMessage = null;
@@ -331,9 +336,10 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
       final callable =
           FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable(
         ApiEndpoints.assessSpeaking,
-        options: HttpsCallableOptions(timeout: ApiEndpoints.longTimeout),
+        options: HttpsCallableOptions(timeout: ApiEndpoints.assessmentTimeout),
       );
       final result = await callable.call({
+        'userId': userId, // ✅ FIX: qo'shildi
         'taskId': widget.exerciseId,
         'language': session.exercise.language,
         'level': session.exercise.level,
@@ -341,14 +347,21 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
         'transcribedText': _transcript.trim(),
         'audioDuration': _recordingSeconds,
       });
+
+      final data = result.data as Map<String, dynamic>? ?? {};
+
+      // ✅ FIX: Backend maydon nomlarini Flutter ga moslashtirish
+      final normalized = _normalizeAssessmentData(data);
+
       if (mounted) {
         setState(() {
-          _assessmentResult = result.data as Map<String, dynamic>? ?? {};
+          _assessmentResult = normalized;
           _isAnalyzing = false;
           _showResult = true;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('⚠️ assessSpeaking xatosi: $e');
       if (mounted) {
         setState(() {
           _assessmentResult = _fallback(session.exercise);
@@ -359,21 +372,110 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
     }
   }
 
-  Map<String, dynamic> _fallback(SpeakingExercise e) {
-    final w = _transcript.trim().split(RegExp(r'\s+')).length;
-    final s = (w * 2).clamp(10, 70);
-    final ielts = (s / 10).clamp(1.0, 7.0);
+  // ✅ YANGI: Backend maydon nomlarini Flutter natija ekrani kutayotgan
+  // nomlar bilan moslashtirish
+  // Backend: pronunciationScore, grammarScore, fluencyScore, vocabularyScore
+  // Flutter: pronunciation, grammar, fluency, topicRelevance
+  Map<String, dynamic> _normalizeAssessmentData(Map<String, dynamic> d) {
     return {
-      'overallScore': s,
+      // Asosiy ball
+      'overallScore': d['overallScore'] ?? d['overall'] ?? 0,
+      // 4 ko'rsatkich — backend alias maydonlari + fallback
+      'pronunciation': d['pronunciation'] ?? d['pronunciationScore'] ?? 0,
+      'fluency': d['fluency'] ?? d['fluencyScore'] ?? 0,
+      'topicRelevance': d['topicRelevance'] ?? d['vocabularyScore'] ?? 0,
+      'grammar': d['grammar'] ?? d['grammarScore'] ?? 0,
+      // IELTS
+      'ieltsScore': d['ieltsScore'] ??
+          _calcIelts(((d['overallScore'] ?? 0) as num).toDouble()),
+      'ieltsBand': d['ieltsBand'] ??
+          _band((d['ieltsScore'] != null
+              ? double.tryParse(d['ieltsScore'].toString()) ?? 0.0
+              : _calcIelts(((d['overallScore'] ?? 0) as num).toDouble()))),
+      // Feedback
+      'feedback': d['overallFeedback'] ?? d['feedback'] ?? '',
+      'strengths': d['strengths'] ?? <String>[],
+      'improvements': d['improvementTips'] ?? d['improvements'] ?? <String>[],
+      // Grammatik xatolar (premium coach uchun)
+      'grammarErrors': d['grammarErrors'] ?? <dynamic>[],
+      'grammarErrorDetails': d['grammarErrorDetails'] ?? <dynamic>[],
+      // Qo'shimcha
+      'transcribedText': _transcript,
+      'topic': d['topic'],
+    };
+  }
+
+  double _calcIelts(double score) {
+    if (score >= 90) return 8.5;
+    if (score >= 80) return 7.5;
+    if (score >= 70) return 6.5;
+    if (score >= 60) return 5.5;
+    if (score >= 50) return 5.0;
+    if (score >= 40) return 4.0;
+    return 3.0;
+  }
+
+  // ✅ Fallback: Cloud Function xato berganida
+  // So'z soni emas, matn tahlili asosida hisoblash
+  Map<String, dynamic> _fallback(SpeakingExercise e) {
+    final words = _transcript.trim().split(RegExp(r'\s+'));
+    final wordCount = words.length;
+    final isEnglish = e.language == 'en';
+
+    // Grammatik tekshirish — oddiy qoidalar
+    int grammarPenalty = 0;
+    if (!_transcript.contains(
+        RegExp(r'\b(I|he|she|it|they|we|you)\b', caseSensitive: false))) {
+      grammarPenalty += 5;
+    }
+
+    // Fluency: gapirish uzunligiga qarab
+    final fluency = wordCount >= 30
+        ? 75
+        : wordCount >= 15
+            ? 60
+            : wordCount >= 7
+                ? 45
+                : 25;
+
+    // Grammar: xatoliklarni hisobga olgan holda
+    final grammar = (70 - grammarPenalty).clamp(20, 90);
+
+    // Mavzu: birinchi topik so'zi bor-yo'qligini tekshirish
+    final topicWords = e.topic.toLowerCase().split(' ');
+    final transcriptLower = _transcript.toLowerCase();
+    final topicMatch =
+        topicWords.any((w) => w.length > 3 && transcriptLower.contains(w));
+    final topicScore = topicMatch ? 70 : 40;
+
+    // Talaffuz: faqat ingliz uchun taxminiy
+    final pronunciation = isEnglish ? 65 : 60;
+
+    final overall = ((pronunciation + fluency + topicScore + grammar) ~/ 4);
+    final ielts = _calcIelts(overall.toDouble());
+
+    return {
+      'overallScore': overall,
       'ieltsScore': ielts.toStringAsFixed(1),
       'ieltsBand': _band(ielts),
-      'pronunciation': (s * 0.9).round(),
-      'fluency': (s * 1.1).clamp(0, 100).round(),
-      'topicRelevance': s,
-      'grammar': (s * 0.95).round(),
-      'feedback': 'Yaxshi harakat! Davom eting.',
-      'strengths': ['Javob berdi', 'Mavzuga yondashdi'],
-      'improvements': ['Ko\'proq gapirib mashq qiling'],
+      'pronunciation': pronunciation,
+      'fluency': fluency,
+      'topicRelevance': topicScore,
+      'grammar': grammar,
+      'feedback': wordCount >= 15
+          ? 'Yaxshi urinish! Yanada ko\'proq gapiring va so\'z boyligingizni oshiring.'
+          : 'Kamroq so\'z ishlatildi. Mavzu bo\'yicha ko\'proq gapiring.',
+      'strengths': wordCount >= 10
+          ? ['Javob berildi', if (topicMatch) 'Mavzuga to\'g\'ri yondashildi']
+          : ['Urinish qilingan'],
+      'improvements': [
+        if (wordCount < 15) 'Ko\'proq gapirib mashq qiling',
+        if (!topicMatch) 'Mavzu bo\'yicha aniqroq gapiring',
+        'Grammatika va talaffuzga e\'tibor bering',
+      ],
+      'grammarErrors': <dynamic>[],
+      'grammarErrorDetails': <dynamic>[],
+      'transcribedText': _transcript,
     };
   }
 
@@ -978,20 +1080,63 @@ class _SpeakingScreenState extends ConsumerState<SpeakingScreen>
                   onPressed: () {
                     final d = _assessmentResult ?? {};
                     final score = (d['overallScore'] as num?)?.toDouble() ?? 0;
+
+                    // ✅ FIX: Dialog konteksti — AI murabbiy vazifani bilsin
+                    // exercise.turns = dialog qadamlari
+                    // partner gapirgan → savol/kontekst
+                    // student gapirishi kerak → tavsiya/misol
+                    final session = ref.read(speakingSessionProvider);
+                    final dialogContext = session?.exercise.turns
+                        .take(6)
+                        .map((t) => t.isPartnerTurn
+                            ? 'AI: ${t.text ?? ""}'
+                            : 'Student (tavsiya): ${t.suggestion ?? ""}')
+                        .where((s) => s.length > 5)
+                        .join(' | ');
+
+                    // ✅ FIX: Grammatik xatolar — aniq jumlalar bilan
+                    // grammarErrors = xato qoidalar ro'yxati
+                    // grammarErrorDetails = original + to'g'rilangan shakl
+                    final grammarErrors = (d['grammarErrors'] as List?)
+                            ?.map((e) => e.toString())
+                            .toList() ??
+                        <String>[];
+                    final grammarErrorDetails =
+                        (d['grammarErrorDetails'] as List?)
+                                ?.map((e) => e as Map<String, dynamic>)
+                                .toList() ??
+                            <Map<String, dynamic>>[];
+
+                    // wrongAnswers formatiga o'tkazamiz — AI murabbiy
+                    // quiz/listening bilan bir xil tushuntirsin
+                    final wrongAnswers = grammarErrorDetails
+                        .map((e) => {
+                              'question': dialogContext ?? d['topic'] ?? '',
+                              'userAnswer': e['original']?.toString() ?? '',
+                              'correctAnswer': e['corrected']?.toString() ?? '',
+                              'explanation': e['explanation']?.toString() ?? '',
+                              'rule': e['rule']?.toString() ?? '',
+                            })
+                        .toList();
+
                     Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => PremiumCoachScreen(
                         trigger: 'after_lesson',
                         skillType: 'speaking',
                         lastScore: score,
-                        // ✅ YANGI: Haqiqiy sessiya ma'lumotlari
                         sessionData: {
-                          'topic': d['topic']?.toString() ?? '',
+                          'topic': d['topic']?.toString() ??
+                              session?.exercise.topic ??
+                              '',
+                          // ✅ AI vazifani ko'radi — "Bu dialog haqida edi"
+                          'taskDescription': dialogContext ?? '',
                           'ieltsBand': d['ieltsBand']?.toString(),
-                          'transcribedText': d['transcribedText']?.toString(),
-                          'grammarErrors': (d['grammarErrors'] as List?)
-                                  ?.map((e) => e.toString())
-                                  .toList() ??
-                              <String>[],
+                          'transcribedText':
+                              d['transcribedText']?.toString() ?? _transcript,
+                          'grammarErrors': grammarErrors,
+                          // ✅ Aniq jumlalar — "I go" → "I went" (past tense)
+                          if (wrongAnswers.isNotEmpty)
+                            'wrongAnswers': wrongAnswers,
                         },
                       ),
                     ));

@@ -76,9 +76,12 @@ export interface WrongAnswerExplanation {
     question: string;
     userAnswer: string;
     correctAnswer: string;
-    whyWrong: string;       // O'qituvchi kabi: nima uchun bu javob noto'g'ri
-    whyCorrect: string;     // Nima uchun bu javob to'g'ri
-    simpleExplanation: string; // Sodda rejim uchun
+    grammarRule: string;       // Qoida nomi: '3rd Person Singular'
+    ruleFormula: string;       // Formula: 'he/she/it + verb+s'
+    whyWrong: string;          // Nima uchun o'quvchi javob xato
+    whyCorrect: string;        // Nima uchun to'g'ri javob to'g'ri
+    examples: string[];        // Misollar ro'yxati
+    simpleExplanation: string; // Eng qisqa tushuntirish
 }
 
 export interface PremiumCoachResponse {
@@ -507,18 +510,25 @@ Faqat JSON qaytargil (o'zbekcha):
       "question": "savol matni (yuqoridagi noto'g'ri javoblar ro'yxatidan)",
       "userAnswer": "o'quvchi bergan javob",
       "correctAnswer": "to'g'ri javob",
-      "whyWrong": "Bu javob noto'g'ri, chunki... [grammatik yoki mantiqiy tushuntirish, kerak bo'lsa qisqa misol bilan]",
-      "whyCorrect": "To'g'ri javob bu, chunki... [nima uchun aynan shu to'g'ri ekanligi, qoida yoki misol bilan]",
-      "simpleExplanation": "Sodda qilib aytganda: ... [eng qisqa va tushunarli tushuntirish, kundalik hayotdan misol]"
+      "grammarRule": "Qoida nomi: masalan '3rd Person Singular Present Simple'",
+      "ruleFormula": "Qoida formulasi: masalan 'he/she/it + verb+s/es (I/you/we/they + verb)'",
+      "whyWrong": "Nima uchun o'quvchi tanlagan javob xato — aniq grammatik sabab. Qaysi qoidaga zid ekanligi. Misol: 'go' I/you/we/they uchun to'g'ri, lekin she/he/it uchun emas.",
+      "whyCorrect": "Nima uchun to'g'ri javob aynan shu — qoidani misollar bilan. Masalan: She goes, He goes, It goes.",
+      "examples": ["To'g'ri misol 1", "To'g'ri misol 2", "Xato misol ❌"],
+      "simpleExplanation": "Eng qisqa tushuntirish: masalan 'She/He/It bilan fe'l oxiriga -s qo'shing'"
     }
   ]
 }
 
 MUHIM QOIDALAR:
 1. wrongAnswerExplanations da FAQAT haqiqatan noto'g'ri javoblangan savollarni ko'rsat
-2. Har bir tushuntirish real o'qituvchi kabi — aniq, qisqa, misol bilan
-3. Listening/Speaking uchun grammatika va talaffuz xatolarini ham tushuntir
-4. wrongAnswers bo'lmasa yoki sessiya yo'q bo'lsa — wrongAnswerExplanations ni bo'sh massiv qilib qo'y []`;
+2. grammarRule — aniq grammatika atamasi (masalan: "Present Simple 3rd Person Singular")
+3. ruleFormula — formula ko'rinishida (masalan: "he/she/it + verb+s/es")
+4. whyWrong — o'quvchi qaysi qoidani buzdi, nima deb o'yladi (aniq)
+5. whyCorrect — to'g'ri javob nima uchun to'g'ri, qoidani misollar bilan
+6. examples — kamida 2 ta to'g'ri + 1 ta xato misol (❌ bilan belgilangan)
+7. Listening/Speaking uchun grammatika va talaffuz xatolarini ham tushuntir
+8. wrongAnswers bo'lmasa yoki sessiya yo'q bo'lsa — wrongAnswerExplanations ni bo'sh massiv qilib qo'y []`;
 
     let analysis = {
         personalAnalysis: `${studentName}, ${langName} tilida haftalik o'rtacha ${stats.overall.weekly}% natija ko'rsatyapsiz.`,

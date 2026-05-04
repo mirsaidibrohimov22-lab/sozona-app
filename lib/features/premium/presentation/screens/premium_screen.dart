@@ -363,8 +363,8 @@ class _PremiumOfferScreen extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => ProviderScope(
-        parent: ProviderScope.containerOf(context),
+      builder: (ctx) => UncontrolledProviderScope(
+        container: ProviderScope.containerOf(context),
         child: _PromoDialog(controller: controller),
       ),
     );
